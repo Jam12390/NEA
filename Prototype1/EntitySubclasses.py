@@ -1,0 +1,108 @@
+import pygame
+from Entity import Entity
+from OtherClasses import Weapon
+from dictionaries import allItems
+from main import FPS, screen
+
+class Player(Entity):
+    def __init__(
+            self,
+            offset: pygame.Vector2,
+            jumpForce: float,
+            maxHP: int,
+            defense: int,
+            speed: float, 
+            pAttackCooldown: float,
+            pSize: pygame.Vector2,
+            spritePath: str,
+            pMass: float,
+            startingPosition: pygame.Vector2,
+            pVelocityCap: pygame.Vector2,
+            startingVelocity: pygame.Vector2 = pygame.Vector2(0,0),
+            pTag: str = "None"
+        ):
+        super().__init__(
+            jumpForce,
+            maxHP,
+            defense,
+            speed,
+            pAttackCooldown,
+            pSize,
+            spritePath,
+            pMass,
+            startingPosition,
+            pVelocityCap,
+            startingVelocity,
+            pTag
+        )
+        self.inventory = {}
+        self.__offset = offset
+        self.weapon = None #TODO: change once default weapon implemented
+    
+    def pickupItem(self, ID: int, replaces: str):
+        newData = None
+        if replaces == "weapon":
+            newData = self.weapon.ID
+            self.weapon.killSelf() #destroy the current weapon
+            self.weapon = Weapon(pID=ID, startingPosition=pygame.Vector2(round(self.rect.centerx + self.__offset.x), round(self.rect.centery + self.__offset.y))) #and replace it with a new instance of the picked up weapon
+        
+        elif replaces.isdigit(): #if replaces is an ID (defaults to item)
+            if ID in self.inventory.keys(): #presence check for item to replace
+                newData = ID
+                self.inventory.pop(ID) #delete it
+            self.inventory[ID] = ["item", allItems[ID]["details"], 1] #add the new item to the inventory
+        
+        elif ID in self.inventory.keys(): #if there is nothing to replace and the item is in the inventory
+            self.inventory[ID][2] += 1 #increment the quantity of said item
+        
+        else: #otherwise
+            self.inventory[ID] = ["item", allItems[ID]["details"], 1] #add the item normally
+        return newData
+    
+    def _recalculateAttributes(self):
+        self._maxHP = self._originalAttributes["maxHP"]
+        self._defense = self._originalAttributes["defense"]
+        self._speed = self._originalAttributes["speed"]
+        self.attackCooldown = self._originalAttributes["attackCooldown"]
+
+        for value in self.inventory.values(): #value is in format [tag: string, details: string]
+            if value[0] == "item":
+                splitValue = value[1].split(", ")
+                splitEffects = [item.split(" ") for item in splitValue] #double split to cover effects which affect multiple attributes
+                for effect in splitEffects: #effect is now in format [variableAffected: string, operator: string, operand: float]
+                    for i in range(value[2]):
+                        self.modifyStat(effect[0], effect[1], effect[2])
+
+        effectValues = [value for value in self._effects.values()]
+
+        for index in range(0, len(effectValues)):
+            splitValue = effectValues[index].split(", ") #double split to cover effects which affect multiple attributes
+            splitEffects = [item.split(" ") for item in splitValue]
+            for effect in splitEffects:
+                self.modifyStat(effect[0], effect[1], effect[2])
+            
+        self._velocityCap *= self._speed #increase speed cap by a factor of _speed
+    
+    def update(self, collidableObjects: list):
+        for key in self._effects.keys():
+            self._effects[key][1] -= 1/FPS #FPS is a global variable denoting the number of game updates per second - 1/FPS is the time since last frame
+            if self._effects[key][1] <= 0:
+                self.removeEffect(ID=int(key.split("-")[0]), instance=key.split("-")[1], forced=False)
+
+        if self.simulated:
+            self._recalculateAttributes()
+
+            self.recalculateResultantForce()
+            self._acceleration = self.getAcceleration(accelerationMultiplier=self._speed)
+            velocityChanged, initialVelocity, finalVelocity, directionChanged = self.getVelocity()
+            displacement = self.displaceObject(velocityChanged=velocityChanged, initialVelocity=initialVelocity, finalVelocity=finalVelocity, directionChanged=directionChanged, collidableObjects=collidableObjects)
+            self.weapon.rect.center = (round(self.weapon.rect.centerx + displacement[0]), self.weapon.rect.centery)
+            if directionChanged:
+                gameObj = pygame.transform.flip(self.gameObj, True, False) #flip the weapon sprite on the x axis
+                if self._velocity.x < 0: #right -> left
+                   self.weapon.rect.center = (round(self.weapon.rect.centerx - (self.__offset.x * 2)), self.weapon.rect.centery) #move the weapon center left by 2*offset to swap the side it's attached to
+                else: #left -> right
+                    self.weapon.rect.center = (round(self.weapon.rect.centerx + (self.__offset.x * 2)), self.weapon.rect.centery)
+
+            self.rect.clamp_ip(pygame.display.get_surface().get_rect())
+            screen.blit(self.gameObj, self.rect)

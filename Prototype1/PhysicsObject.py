@@ -41,10 +41,10 @@ class PhysicsObject(pygame.sprite.Sprite):
         for force in self._yForces.values(): #sum of vertical forces
             resYForce += force
         self._resultantForce = pygame.math.Vector2(resXForce, resYForce) #store as vector2 (easier for later operations)
-        print(f"ResForce{self._resultantForce}")
+        #print(f"ResForce{self._resultantForce}")
     
     def getAcceleration(self, accelerationMultiplier: float = 1.0):
-        print(f"Acceleration{(self._resultantForce / self._mass) * accelerationMultiplier}")
+        #print(f"Acceleration{(self._resultantForce / self._mass) * accelerationMultiplier}")
         return (self._resultantForce / self._mass) * accelerationMultiplier
     
     def getVelocity(self):
@@ -71,7 +71,7 @@ class PhysicsObject(pygame.sprite.Sprite):
             yVelocity = self._velocity.y + self._acceleration.y*(1/self.FPS)
             yVelocity = max(self._velocityCap.y * -1, min(yVelocity, self._velocityCap.y)) #same with yVelocity
 
-        print(f"Velocity{xVelocity, yVelocity}")
+        #print(f"Velocity{xVelocity, yVelocity}")
         
         if xVelocity == initialVelocity.x: #check if either velocity has changed for displaceObject() equation
             velocityChanged.append(False)
@@ -115,7 +115,7 @@ class PhysicsObject(pygame.sprite.Sprite):
         else:
             yDisplacement = self._velocity.y*5*(1/self.FPS) #conversion of 1m -> 5pix?
         
-        print(f"Displacement{xDisplacement, yDisplacement}")
+        #print(f"Displacement{xDisplacement, yDisplacement}")
 
         self.renderCollisions(collidableObjects=collidableObjects, displacement=pygame.Vector2(xDisplacement, yDisplacement)) #update position
 

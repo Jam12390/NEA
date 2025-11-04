@@ -1,8 +1,7 @@
 import pygame
+import operator
 from PhysicsObject import PhysicsObject
 from dictionaries import allEffects
-from main import FPS, screen
-import operator
 
 operators = {
     "+": operator.add,
@@ -14,6 +13,7 @@ operators = {
 class Entity(PhysicsObject):
     def __init__(
             self,
+            FPS: int,
             jumpForce: float,
             maxHP: int,
             defense: int,
@@ -28,6 +28,7 @@ class Entity(PhysicsObject):
             pTag: str = "None"
     ):
         super().__init__(
+            FPS=FPS,
             pSize=pSize,
             spritePath=spritePath,
             pTag=pTag,
@@ -109,12 +110,20 @@ class Entity(PhysicsObject):
                 self.attackCooldown = operators[operator](self.attackCooldown, magnitude)
     
     def jump(self):
-        self._velocity.y += self._jumpForce
+        self._velocity.y -= self._jumpForce
         self.isGrounded = False
+    
+    def modifySpeedCap(self, axis: str, magnitude: float):
+        if len(axis) > 1:
+            axis = axis[0:1]
+        if axis == "x":
+            self._velocityCap.x += magnitude*self._speed #type: ignore
+        else:
+            self._velocityCap.y += magnitude*self._speed #type: ignore
     
     def update(self, collidableObjects):
         for key in self._effects.keys():
-            self._effects[key][1] -= 1/FPS #FPS is a global variable denoting the number of game updates per second - 1/FPS is the time since last frame
+            self._effects[key][1] -= 1/self.FPS #FPS is a global variable denoting the number of game updates per second - 1/FPS is the time since last frame
             if self._effects[key][1] <= 0:
                 self.removeEffect(ID=int(key.split("-")[0]), instance=key.split("-")[1], forced=False)
 
@@ -123,8 +132,7 @@ class Entity(PhysicsObject):
 
             self.recalculateResultantForce()
             self._acceleration = self.getAcceleration(accelerationMultiplier=self._speed)
-            velocityChanged, initialVelocity, finalVelocity, directionChanged = self.getVelocity()
-            self.displaceObject(velocityChanged=velocityChanged, initialVelocity=initialVelocity, finalVelocity=finalVelocity, directionChanged=directionChanged, collidableObjects=collidableObjects)
+            self.getVelocity()
+            self.displaceObject(collidableObjects=collidableObjects)
 
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())
-            screen.blit(self.image, self.rect)

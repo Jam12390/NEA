@@ -1,7 +1,7 @@
 import pygame
 
 def normalise(value):
-    return value * (-1 if value<0 else 1) 
+    return value * (-1 if value < 0 else 1) 
 
 class PhysicsObject(pygame.sprite.Sprite):
     def __init__(
@@ -150,68 +150,74 @@ class PhysicsObject(pygame.sprite.Sprite):
         newRecty.center = (newRecty.center[0], round(newRectx.center[1] + displacement.y))
 
         self.rect.center = (round(self.rect.centerx + displacement.x), round(self.rect.centery + displacement.y))
-
-        for collidable in collidableObjects:
-            if collidable.tag in ["wall", "floor"] and collidable.simulated: #thinking ahead for when objects are de-rendered to improve performance
-                #bottom left corner
-                if pygame.Rect.collidepoint(collidable.rect, self.rect.bottomleft):
-                    xDiff = normalise(self.rect.left - collidable.rect.right)
-                    yDiff = normalise(self.rect.bottom - collidable.rect.top)
-
-                    if xDiff < yDiff:
-                        self.rect.left = collidable.rect.right
-                        collidingDirections.append("l")
-                        frictionCoefs["l"] = collidable.frictionCoef
+        for group in collidableObjects:
+            for collidable in group:
+                if collidable.tag == "item" and self.tag == "player":
+                    if pygame.Rect.colliderect(self.rect, collidable.rect):
+                        collidable.UIWindow.shown = True
                     else:
-                        self.rect.bottom = collidable.rect.top
-                        collidingDirections.append("d")
-                        frictionCoefs["d"] = collidable.frictionCoef
-                        if collidable.tag == "floor":
-                            self.isGrounded = True
+                        collidable.UIWindow.shown = False
 
-                #top left corner
-                if pygame.Rect.collidepoint(collidable.rect, self.rect.topleft):
-                    xDiff = normalise(self.rect.left - collidable.rect.right)
-                    yDiff = normalise(self.rect.top - collidable.rect.bottom)
+                if collidable.tag in ["wall", "floor"] and collidable.simulated: #thinking ahead for when objects are de-rendered to improve performance
+                    #bottom left corner
+                    if pygame.Rect.collidepoint(collidable.rect, self.rect.bottomleft):
+                        xDiff = normalise(self.rect.left - collidable.rect.right)
+                        yDiff = normalise(self.rect.bottom - collidable.rect.top)
 
-                    if xDiff < yDiff:
-                        self.rect.left = collidable.rect.right
-                        collidingDirections.append("l")
-                        frictionCoefs["l"] = collidable.frictionCoef
-                    else:
-                        self.rect.top = collidable.rect.bottom
-                        collidingDirections.append("u")
-                        frictionCoefs["u"] = collidable.frictionCoef
-                
-                #top right corner
-                if pygame.Rect.collidepoint(collidable.rect, self.rect.topright):
-                    xDiff = normalise(self.rect.right - collidable.rect.left)
-                    yDiff = normalise(self.rect.top - collidable.rect.bottom)
+                        if xDiff < yDiff:
+                            self.rect.left = collidable.rect.right
+                            collidingDirections.append("l")
+                            frictionCoefs["l"] = collidable.frictionCoef
+                        else:
+                            self.rect.bottom = collidable.rect.top
+                            collidingDirections.append("d")
+                            frictionCoefs["d"] = collidable.frictionCoef
+                            if collidable.tag == "floor":
+                                self.isGrounded = True
 
-                    if xDiff < yDiff:
-                        self.rect.right = collidable.rect.left
-                        collidingDirections.append("r")
-                        frictionCoefs["r"] = collidable.frictionCoef
-                    else:
-                        self.rect.top = collidable.rect.bottom
-                        collidingDirections.append("u")
-                        frictionCoefs["u"] = collidable.frictionCoef
-                
-                #bottom right corner
-                if pygame.Rect.collidepoint(collidable.rect, self.rect.bottomright):
-                    xDiff = normalise(self.rect.right - collidable.rect.left)
-                    yDiff = normalise(self.rect.bottom - collidable.rect.top)
+                    #top left corner
+                    if pygame.Rect.collidepoint(collidable.rect, self.rect.topleft):
+                        xDiff = normalise(self.rect.left - collidable.rect.right)
+                        yDiff = normalise(self.rect.top - collidable.rect.bottom)
 
-                    if xDiff < yDiff:
-                        self.rect.right = collidable.rect.left
-                        collidingDirections.append("r")
-                        frictionCoefs["r"] = collidable.frictionCoef
-                    else:
-                        self.rect.bottom = collidable.rect.top
-                        collidingDirections.append("d")
-                        frictionCoefs["d"] = collidable.frictionCoef
-                        if collidable.tag == "floor":
-                            self.isGrounded = True
+                        if xDiff < yDiff:
+                            self.rect.left = collidable.rect.right
+                            collidingDirections.append("l")
+                            frictionCoefs["l"] = collidable.frictionCoef
+                        else:
+                            self.rect.top = collidable.rect.bottom
+                            collidingDirections.append("u")
+                            frictionCoefs["u"] = collidable.frictionCoef
+
+                    #top right corner
+                    if pygame.Rect.collidepoint(collidable.rect, self.rect.topright):
+                        xDiff = normalise(self.rect.right - collidable.rect.left)
+                        yDiff = normalise(self.rect.top - collidable.rect.bottom)
+
+                        if xDiff < yDiff:
+                            self.rect.right = collidable.rect.left
+                            collidingDirections.append("r")
+                            frictionCoefs["r"] = collidable.frictionCoef
+                        else:
+                            self.rect.top = collidable.rect.bottom
+                            collidingDirections.append("u")
+                            frictionCoefs["u"] = collidable.frictionCoef
+
+                    #bottom right corner
+                    if pygame.Rect.collidepoint(collidable.rect, self.rect.bottomright):
+                        xDiff = normalise(self.rect.right - collidable.rect.left)
+                        yDiff = normalise(self.rect.bottom - collidable.rect.top)
+
+                        if xDiff < yDiff:
+                            self.rect.right = collidable.rect.left
+                            collidingDirections.append("r")
+                            frictionCoefs["r"] = collidable.frictionCoef
+                        else:
+                            self.rect.bottom = collidable.rect.top
+                            collidingDirections.append("d")
+                            frictionCoefs["d"] = collidable.frictionCoef
+                            if collidable.tag == "floor":
+                                self.isGrounded = True
                 #if pygame.Rect.colliderect(collidable.rect, newRectx): ADD TO DOC FOR TEST 1
                 #    if velocity[0] >= 0:
                 #        collidingDirections.append("r")

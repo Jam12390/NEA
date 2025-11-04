@@ -3,8 +3,9 @@ import sys
 from PhysicsObject import PhysicsObject
 from Entity import Entity
 from EntitySubclasses import Player
-from OtherClasses import Weapon, WallObj, Item
+from OtherClasses import Weapon, WallObj, Item, ItemUIWindow
 from button import Button
+from dictionaries import *
 
 screenWidth = 800
 screenHeight = screenWidth*0.8 #keep the ratio for w-h at 1:0.8 - could change later
@@ -41,10 +42,24 @@ walls = pygame.sprite.Group()
 walls.add(
     WallObj(
         size=pygame.Vector2(500, 100),
-        position=pygame.math.Vector2(screenWidth/2, (screenHeight/2)+250), #position the floor beneath the player
+        position=pygame.Vector2(screenWidth/2, (screenHeight/2)+250), #position the floor beneath the player
         spritePath="Sprites/DefaultSprite.png", #placeholder for actual image path in development
         pTag="floor",
         frictionCoef=1.25
+    )
+)
+
+items = pygame.sprite.Group()
+items.add(
+    Item(
+        pID=0,
+        startingPosition=pygame.Vector2(screenWidth/2 + 150, (screenHeight/2)+175),
+        UIWindow=ItemUIWindow(
+            itemID=0,
+            replaces=allItems[0]["replaces"],
+            pos=(screenWidth/2 + 150, (screenHeight/2) + 50),
+            size=(400, 150)
+        )
     )
 )
 
@@ -137,28 +152,40 @@ def mainloop():
                     player.modifySpeedCap(axis="y", magnitude=-15) #stop fast falling
                     player.fastFalling = False
 
-            if keys[pygame.K_q]:
+            if keys[pygame.K_e]:
+                for item in items:
+                    if item.UIWindow.shown:
+                        item.pickup(target=player)
+
+            if keys[pygame.K_q]: #debug code, resets the player position to center
                 player.rect.center = (round(screenWidth/2), round(screenHeight/2))
 
 
             #print(f"xForces{player._xForces}")
             #print(f"yForces{player._yForces}")
 
+            screen.fill((0, 0, 0)) #rgb value for black background
 
             #update all objects (this includes collision detection)
-            player.update(collidableObjects=walls)
+            player.update(collidableObjects=[walls, items])
             screen.blit(player.image, player.rect)
             walls.update()
             for sprite in walls:
                 screen.blit(sprite.image, sprite.rect)
+            
+            items.update()
+            for item in items:
+                if item.UIWindow.shown:
+                    item.UIWindow.update()
+                    screen.blit(item.UIWindow.surface, item.UIWindow.rect)
 
             #print(f"Pos{player.rect.center}")
 
             #draw groups and update display
-            screen.fill((0, 0, 0)) #rgb value for black background
             #player.draw(screen)
-            pygame.draw.rect(screen, (255, 0, 0), player.rect)
+            #pygame.draw.rect(screen, (255, 0, 0), player.rect)
             walls.draw(screen)
+            items.draw(screen)
             pygame.display.flip()
 
 def inventory():
@@ -169,8 +196,9 @@ def inventory():
     exSubtitle = font.render("TestData", False, (255, 255, 255))
     while inventoryOpen:
         clock.tick(FPS) #cool note: ticking the clock twice imitates slow motion (at the cost of FPS ofc)
-        pygame.draw.rect(screen, (255, 0, 0), player.rect)
+        screen.blit(player.image, player.rect)
         walls.draw(screen)
+        items.draw(screen)
 
         dim = pygame.Surface((screenWidth, screenHeight))
         dim.fill((0,0,0))

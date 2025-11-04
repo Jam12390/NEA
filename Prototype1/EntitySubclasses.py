@@ -60,7 +60,8 @@ class Player(Entity):
             self.inventory[ID][2] += 1 #increment the quantity of said item
         
         else: #otherwise
-            self.inventory[ID] = ["item", allItems[ID]["details"], 1] #add the item normally
+            self.inventory[ID] = ["item", allItems[ID]["description"], 1] #add the item normally
+        self._recalculateAttributes()
         return newData
     
     def _recalculateAttributes(self):
@@ -69,13 +70,18 @@ class Player(Entity):
         self._speed = self._originalAttributes["speed"]
         self.attackCooldown = self._originalAttributes["attackCooldown"]
 
-        for value in self.inventory.values(): #value is in format [tag: string, details: string]
+        keys = [item for item in self.inventory.keys()]
+        values = [value for value in self.inventory.values()]
+
+        for index in range(0, len(keys)): #value is in format [tag: string, details: string]
+            key = keys[index]
+            value = values[index]
             if value[0] == "item":
-                splitValue = value[1].split(", ")
+                splitValue = allItems[key]["effects"].split(", ")
                 splitEffects = [item.split(" ") for item in splitValue] #double split to cover effects which affect multiple attributes
-                for effect in splitEffects: #effect is now in format [variableAffected: string, operator: string, operand: float]
+                for effect in splitEffects: #effedct is now in format [variableAffected: string, operator: string, operand: float]
                     for i in range(value[2]):
-                        self.modifyStat(effect[0], effect[1], effect[2])
+                        self.modifyStat(effect[0], effect[1], float(effect[2]))
 
         effectValues = [value for value in self._effects.values()]
 

@@ -5,7 +5,15 @@ It's used to stop errors in files like Entity.py which require variables like al
 
 allEffects = {}
 
-allItems = {}
+allItems = {
+    0: {
+        "imgPath": "Sprites/DefaultSprite.png",
+        "name": "TestItem",
+        "replaces": "None",
+        "description": "A test item... Should make you move really fast",
+        "effects": "speed * 10",
+    }
+}
 
 allWeapons = {
     0: {

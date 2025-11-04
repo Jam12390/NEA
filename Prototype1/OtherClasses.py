@@ -55,21 +55,68 @@ class WallObj(pygame.sprite.Sprite):
     def update(self):
         pass
 
+class ItemUIWindow(pygame.sprite.Sprite):
+    def __init__(self, itemID, replaces, pos, size):
+        super().__init__()
+        self.itemID = itemID
+        itemName = allItems[itemID]["name"]
+        itemDesc = allItems[itemID]["description"]
+        itemEffects = allItems[itemID]["effects"]
+        itemReplaces = replaces
+        self.shown = False
+        self.size = size
+
+        font = pygame.font.SysFont("Calibri", 16)
+        textColour = (0, 0, 0)
+        self.title = font.render(f"{self.itemID} - {itemName}", False, textColour)
+        self.subtitle = font.render(f"! - Replaces {itemReplaces}   Effects: {itemEffects}", False, textColour)
+        self.desc = font.render(itemDesc, False, textColour)
+
+        self.surface = pygame.Surface(self.size)
+        self.surface.fill((175, 175, 175))
+        self.surface.set_alpha(150)
+        self.surface.blit(self.title, (25, 10))
+        self.surface.blit(self.subtitle, (25, 46))
+        self.surface.blit(self.desc, (25, 100))
+
+        self.rect = pygame.Surface.get_rect(self.surface)
+        self.rect.center = (pos[0], pos[1])
+    
+    def update(self):
+        self.surface.blit(self.title, (25, 10))
+        self.surface.blit(self.subtitle, (25, 46))
+        self.surface.blit(self.desc, (25, 100))
+    
+    def killSelf(self):
+        self.kill()
+
 class Item(pygame.sprite.Sprite):
     def __init__(
             self,
             pID: int,
-            startingPosition: pygame.Vector2
+            startingPosition: pygame.Vector2,
+            UIWindow: ItemUIWindow
         ):
+        super().__init__()
         self.ID = pID
+        self.tag = "item"
         self.__replaces = allItems[pID]["replaces"]
+        self.surface = pygame.Surface((175, 175))
         self.image = pygame.transform.smoothscale(pygame.image.load(allItems[pID]["imgPath"]), (100, 100))
+        self.surface.blit(self.image, (175//2, 175//2))
         self.rect = pygame.Surface.get_rect(self.image)
         self.rect.center = (round(startingPosition.x), round(startingPosition.y))
+        self.UIWindow = UIWindow
     
+    def update(self):
+        self.surface.blit(self.image, (175//2, 175//2))
+
     def pickup(self, target):
-        target.pickupItem(ID=self.ID, replaces=self.__replaces)
-        self.killSelf()
+        newData = target.pickupItem(ID=self.ID, replaces=self.__replaces)
+        if newData == None:
+            self.killSelf()
+        else:
+            self.swapItem(newID=newData)
     
     def swapItem(self, newID: int):
         self.ID = newID
@@ -81,4 +128,5 @@ class Item(pygame.sprite.Sprite):
             self.image = pygame.transform.smoothscale(pygame.image.load(allItems[newID]["imgPath"]), (100, 100))
     
     def killSelf(self):
+        self.UIWindow.killSelf()
         self.kill()

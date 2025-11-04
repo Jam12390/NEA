@@ -7,4 +7,9 @@ allEffects = {}
 
 allItems = {}
 
-allWeapons = {}
+allWeapons = {
+    0: {
+        "imgPath": "Sprites/DefaultSprite.png",
+        "damage": 10
+    }
+}

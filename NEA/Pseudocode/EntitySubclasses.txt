@@ -65,7 +65,7 @@ class Player inherits Entity
             displacement = displaceObject(velocityChanged=velocityChanged, initialVelocity=initialVelocity, finalVelocity=finalVelocity, directionChanged=directionChanged, collidableObjects=collidableObjects)
             weapon.rect.center += displacement[0]
             if directionChanged:
-                gameObj = pygame.transform.flip(gameObj, true, false) #flip the weapon sprite on the x axis
+                weapon.gameObj = pygame.transform.flip(gameObj, true, false) #flip the weapon sprite on the x axis
                 if _velocity.x < 0: #right -> left
                     weapon.rect.center.x -= __offset.x * 2 #move the weapon center left by 2*offset to swap the side it's attached to
                 else: #left -> right
@@ -95,6 +95,7 @@ class Player inherits Entity
             startingPosition: pygame.math.Vector2,
             startingVelocity: pygame.math.Vector2 = pygame.math.Vector2(0,0),
             pVelocityCap: pygame.math.Vector2
+            startingWeaponID: int = 0
         )
         super.new(
             jumpForce=jumpForce
@@ -112,6 +113,6 @@ class Player inherits Entity
         )
         inventory = {}
         __offset = offset
-        weapon = null #a default weapon will be set here during development
+        weapon = Weapon(pID=startingWeaponID, startingPosition=pygame.math.Vector2(rect.centerx + __offset.x, rect.centery + __offset.y))
     endprocedure
 endclass

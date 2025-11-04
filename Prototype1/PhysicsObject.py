@@ -1,5 +1,5 @@
 import pygame
-from main import FPS, screen
+from main import FPS, screen, playerGroup
 
 class PhysicsObject(pygame.sprite.Sprite):
     def __init__(
@@ -14,8 +14,8 @@ class PhysicsObject(pygame.sprite.Sprite):
     ):
         super().__init__()
         self.size = pSize
-        self.gameObj = pygame.transform.smoothscale(pygame.image.load(spritePath), (pSize.x, pSize.y))
-        self.rect = pygame.Surface.get_rect(self.gameObj)
+        self.image = pygame.transform.smoothscale(pygame.image.load(spritePath), (pSize.x, pSize.y))
+        self.rect = pygame.Surface.get_rect(self.image)
         self.rect.center = (round(startingPosition.x), round(startingPosition.y))
         self.simulated = True
         self.tag = pTag
@@ -79,7 +79,7 @@ class PhysicsObject(pygame.sprite.Sprite):
             initialVelocity: pygame.Vector2,
             finalVelocity: pygame.Vector2,
             directionChanged: bool,
-            collidableObjects: list
+            collidableObjects
     ):
         if velocityChanged[0]: #if the velocity has changed, use s = (v^2 - u^2)/(2*a)
             xDisplacement = (finalVelocity.x**2 - initialVelocity.x**2)/(self._acceleration.x*2)
@@ -112,7 +112,7 @@ class PhysicsObject(pygame.sprite.Sprite):
         self._velocity = finalVelocity #update velocity
         return pygame.math.Vector2(xDisplacement, yDisplacement) #for use in updating weapon position in Player subclass
     
-    def renderCollisions(self, collidableObjects: list, velocity: list, displacement: pygame.math.Vector2):
+    def renderCollisions(self, collidableObjects, velocity: list, displacement: pygame.math.Vector2):
         self.blockedMotion = []
         collidingDirections = []
 
@@ -182,10 +182,18 @@ class PhysicsObject(pygame.sprite.Sprite):
         elif ref in self._yForces.keys():
             self._yForces.pop(ref)
     
+    def containsForce(self, axis: str, ref: str):
+        if len(axis) > 1:
+            axis = axis[0:1] #truncate axis to only be 1 character
+        if axis == "x":
+            return ref in self._xForces.keys()
+        else:
+            return ref in self._yForces.keys()
+
     def killSelf(self):
         self.kill()
 
-    def update(self, collidableObjects: list):
+    def update(self, collidableObjects):
         if self.simulated:
             self.recalculateResultantForce() #methods are called in dependency order i.e. ResForce is required for getAcceleration() which is required for getVelocity(), etc.
             self._acceleration = self.getAcceleration()
@@ -193,4 +201,4 @@ class PhysicsObject(pygame.sprite.Sprite):
             self.displaceObject(velocityChanged=velocityChanged, initialVelocity=initialVelocity, finalVelocity=finalVelocity, directionChanged=directionChanged, collidableObjects=collidableObjects)
 
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())
-            screen.blit(self.gameObj, self.rect)
+            screen.blit(self.image, self.rect)

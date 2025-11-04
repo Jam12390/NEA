@@ -1,15 +1,15 @@
 import pygame
 from pygame.sprite import _Group
 from dictionaries import allItems, allWeapons
-from main import FPS, screen, player
+from main import FPS, screen, playerGroup
 
 class Weapon(pygame.sprite.Sprite):
     def __init__(self, pID: int, startingPosition: pygame.Vector2):
         super().__init__()
         self.ID = pID
         self.__replaces = allWeapons[pID]["replaces"]
-        self.gameObj = pygame.transform.smoothscale(pygame.image.load(allWeapons[pID]["imgPath"]), (100, 100))
-        self.rect = pygame.Surface.get_rect(self.gameObj)
+        self.image = pygame.transform.smoothscale(pygame.image.load(allWeapons[pID]["imgPath"]), (100, 100))
+        self.rect = pygame.Surface.get_rect(self.image)
         self.rect.center = (round(startingPosition.x), round(startingPosition.y))
         self.damage = allWeapons[pID]["damage"]
         self.currentlyAttacking = False
@@ -42,16 +42,16 @@ class WallObj(pygame.sprite.Sprite):
             pTag: str = "wall"
         ):
         super().__init__()
-        self.gameObj = pygame.transform.smoothscale(pygame.image.load(spritePath), (round(size.x), round(size.y)))
+        self.image = pygame.transform.smoothscale(pygame.image.load(spritePath), (round(size.x), round(size.y)))
         self.tag = pTag
-        self.rect = pygame.Surface.get_rect(self.gameObj)
+        self.rect = pygame.Surface.get_rect(self.image)
         self.rect.center = (round(position.x), round(position.y))
     
     def killSelf(self):
         self.kill()
     
     def update(self):
-        screen.blit(self.gameObj, self.rect)
+        screen.blit(self.image, self.rect)
 
 class Item(pygame.sprite.Sprite):
     def __init__(
@@ -61,23 +61,23 @@ class Item(pygame.sprite.Sprite):
         ):
         self.ID = pID
         self.__replaces = allItems[pID]["replaces"]
-        self.gameObj = pygame.transform.smoothscale(pygame.image.load(allItems[pID]["imgPath"]), (100, 100))
-        self.rect = pygame.Surface.get_rect(self.gameObj)
+        self.image = pygame.transform.smoothscale(pygame.image.load(allItems[pID]["imgPath"]), (100, 100))
+        self.rect = pygame.Surface.get_rect(self.image)
         self.rect.center = (round(startingPosition.x), round(startingPosition.y))
     
     def pickup(self):
-        player.pickupItem(ID=self.ID, replaces=self.__replaces)
+        playerGroup.sprite.pickupItem(ID=self.ID, replaces=self.__replaces)
         self.killSelf()
     
     def swapItem(self, newID: int):
         self.ID = newID
         if self.__replaces == "weapon":
             self.__replaces = "weapon"
-            self.gameObj = pygame.transform.smoothscale(pygame.image.load(allWeapons[newID]["imgPath"]), (100, 100))
+            self.image = pygame.transform.smoothscale(pygame.image.load(allWeapons[newID]["imgPath"]), (100, 100))
         else:
             self.__replaces = allItems[newID]["replaces"]
-            self.gameObj = pygame.transform.smoothscale(pygame.image.load(allItems[newID]["imgPath"]), (100, 100))
-        screen.blit(self.gameObj, self.rect) #ensure screen updates
+            self.image = pygame.transform.smoothscale(pygame.image.load(allItems[newID]["imgPath"]), (100, 100))
+        screen.blit(self.image, self.rect) #ensure screen updates
     
     def killSelf(self):
         self.kill()

@@ -26,7 +26,8 @@ player = new Player(
     pMass=5,
     startingPosition=pygame.math.Vector2(screenWidth/2, screenHeight/2),
     startingVelocity=pygame.math.Vector2(0, 0),
-    pVelocityCap=pygame.math.Vector2(25, 25)
+    pVelocityCap=pygame.math.Vector2(25, 25),
+    startingWeaponID=0
 )
 
 walls = pygame.sprite.Group()
@@ -34,7 +35,7 @@ walls.add(
     new WallObj(
         position=pygame.math.Vector2(screenWidth/2, (screenHeight/2)-150), #position the floor beneath the player
         spritePath="\...", #placeholder for actual image path in development
-        tag="floor"
+        pTag="floor"
     )
 )
 
@@ -43,7 +44,7 @@ running = true
 while running:
     clock.tick(FPS)
 
-    events = pygame.events.get()
+    events = pygame.event.get()
 
     for event in events:
         if event.type == pygame.QUIT:
@@ -52,23 +53,23 @@ while running:
         endif
     endfor
 
-    keys = pygame.get_pressed()
+    keys = pygame.key.get_pressed()
 
     #cycle through all potential movement inputs
     if (keys[pygame.K_w] OR keys[pygame.K_SPACE]) AND player.isGrounded AND NOT player.blockedMotion.contains("u"):
         player.jump()
     endif
-    if keys[pygame.K_a] AND NOT player.blockedMotion.contains("l"):
+    if keys[pygame.K_a] AND NOT player.containsForce(axis="x", ref="UserInputLeft") AND NOT player.blockedMotion.contains("l"):
         player.addForce(axis="x", direction="l", ref="UserInputLeft", magnitude=25) #magnitude 25 = 25N
     elseif NOT keys[pygame.K_a]:
         player.removeForce(axis="x", ref="UserInputLeft")
     endif
-    if keys[pygame.K_d] AND NOT player.blockedMotion.contains("r"):
+    if keys[pygame.K_d] AND NOT player.containsForce(axis="x", ref="UserInputRight") AND NOT player.containsForce(axis="x", ref="UserInputLeft") AND NOT player.blockedMotion.contains("r"):
         player.addForce(axis="x", direction="r", ref="UserInputRight", magnitude=25) #magnitude 25 = 25N
     elseif NOT keys[pygame.K_d]:
         player.removeForce(axis="x", ref="UserInputRight")
     endif
-    if keys[pygame.K_s] AND NOT player.blockedMotion.contains("d"):
+    if keys[pygame.K_s] AND NOT player.containsForce(axis="y", ref="UserInputDown") AND NOT player.blockedMotion.contains("d"):
         player.addForce(axis="y", direction="d", ref="UserInputDown", magnitude=25) #magnitude 25 = 25N
     elseif NOT keys[pygame.K_s]:
         player.removeForce(axis="y", ref="UserInputDown")

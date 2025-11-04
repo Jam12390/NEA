@@ -19,7 +19,8 @@ class Player(Entity):
             startingPosition: pygame.Vector2,
             pVelocityCap: pygame.Vector2,
             startingVelocity: pygame.Vector2 = pygame.Vector2(0,0),
-            pTag: str = "None"
+            pTag: str = "None",
+            startingWeaponID: int = 0
         ):
         super().__init__(
             jumpForce,
@@ -37,7 +38,7 @@ class Player(Entity):
         )
         self.inventory = {}
         self.__offset = offset
-        self.weapon = None #TODO: change once default weapon implemented
+        self.weapon = Weapon(pID=startingWeaponID, startingPosition=pygame.Vector2(round(self.rect.centerx + self.__offset.x), round(self.rect.centery + self.__offset.y))) #TODO: change once default weapon implemented
     
     def pickupItem(self, ID: int, replaces: str):
         newData = None
@@ -83,7 +84,7 @@ class Player(Entity):
             
         self._velocityCap *= self._speed #increase speed cap by a factor of _speed
     
-    def update(self, collidableObjects: list):
+    def update(self, collidableObjects):
         for key in self._effects.keys():
             self._effects[key][1] -= 1/FPS #FPS is a global variable denoting the number of game updates per second - 1/FPS is the time since last frame
             if self._effects[key][1] <= 0:
@@ -98,11 +99,11 @@ class Player(Entity):
             displacement = self.displaceObject(velocityChanged=velocityChanged, initialVelocity=initialVelocity, finalVelocity=finalVelocity, directionChanged=directionChanged, collidableObjects=collidableObjects)
             self.weapon.rect.center = (round(self.weapon.rect.centerx + displacement[0]), self.weapon.rect.centery)
             if directionChanged:
-                gameObj = pygame.transform.flip(self.gameObj, True, False) #flip the weapon sprite on the x axis
+                self.weapon.image = pygame.transform.flip(self.image, True, False) #flip the weapon sprite on the x axis
                 if self._velocity.x < 0: #right -> left
                    self.weapon.rect.center = (round(self.weapon.rect.centerx - (self.__offset.x * 2)), self.weapon.rect.centery) #move the weapon center left by 2*offset to swap the side it's attached to
                 else: #left -> right
                     self.weapon.rect.center = (round(self.weapon.rect.centerx + (self.__offset.x * 2)), self.weapon.rect.centery)
 
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())
-            screen.blit(self.gameObj, self.rect)
+            screen.blit(self.image, self.rect)

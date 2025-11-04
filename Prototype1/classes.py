@@ -1,5 +1,4 @@
 import pygame
-import sys
 from dictionaries import *
 import operator
 
@@ -82,23 +81,21 @@ class PhysicsObject(pygame.sprite.Sprite):
         print(f"Velocity{xVelocity, yVelocity}")
         
         if xVelocity == initialVelocity.x: #check if either velocity has changed for displaceObject() equation
-            velocityChanged.append(False)
-        else:
             velocityChanged.append(True)
+        else:
+            velocityChanged.append(False)
         
         if yVelocity == initialVelocity.y:
-            velocityChanged.append(False)
-        else:
             velocityChanged.append(True)
+        else:
+            velocityChanged.append(False)
         
         if (initialVelocity.x < 0 and xVelocity >= 0) or (initialVelocity.x > 0 and xVelocity <= 0): #check if the object's weapon needs to change position
             directionChanged = True
         else:
             directionChanged = False
         
-        self._velocity = pygame.Vector2(xVelocity, yVelocity)
-        
-        return directionChanged
+        return velocityChanged, initialVelocity, pygame.math.Vector2(xVelocity, yVelocity), directionChanged
 
     def getVelocityValue(self):
         return self._velocity
@@ -108,6 +105,10 @@ class PhysicsObject(pygame.sprite.Sprite):
     
     def displaceObject(
             self,
+            velocityChanged: list,
+            initialVelocity: pygame.Vector2,
+            finalVelocity: pygame.Vector2,
+            directionChanged: bool,
             collidableObjects
     ):
         #xDenominator = 1 if self._acceleration.x*2 == 0 else self._acceleration.x*2 #prevent /0 errors
@@ -125,27 +126,28 @@ class PhysicsObject(pygame.sprite.Sprite):
         
         print(f"Displacement{xDisplacement, yDisplacement}")
 
-        self.renderCollisions(collidableObjects=collidableObjects, displacement=pygame.Vector2(xDisplacement, yDisplacement)) #update position
+        self.renderCollisions(collidableObjects=collidableObjects, velocity=[finalVelocity.x, finalVelocity.y], displacement=pygame.Vector2(xDisplacement, yDisplacement)) #update position
 
         if "l" in self.blockedMotion:
             xDisplacement = 0 #don't move the object
-            self._velocity.x = 0 #assume velocity is in the same direction and therefore set it to 0
+            finalVelocity.x = 0 #assume velocity is in the same direction and therefore set it to 0
         
         if "r" in self.blockedMotion:
             xDisplacement = 0
-            self._velocity.x = 0
+            finalVelocity.x = 0
         
         if "d" in self.blockedMotion:
             yDisplacement = 0
-            self._velocity.y = 0
+            finalVelocity.y = 0
         
         if "u" in self.blockedMotion:
             yDisplacement = 0
-            self._velocity.y = 0
+            finalVelocity.y = 0
         
+        self._velocity = finalVelocity #update velocity
         return pygame.math.Vector2(xDisplacement, yDisplacement) #for use in updating weapon position in Player subclass
     
-    def renderCollisions(self, collidableObjects, displacement: pygame.math.Vector2):
+    def renderCollisions(self, collidableObjects, velocity: list, displacement: pygame.math.Vector2):
         self.blockedMotion = []
         collidingDirections = []
 
@@ -210,7 +212,8 @@ class PhysicsObject(pygame.sprite.Sprite):
                         collidingDirections.append("d")
                         if collidable.tag == "floor":
                             self.isGrounded = True
-                #if pygame.Rect.colliderect(collidable.rect, newRectx): ADD TO DOC FOR TEST 1
+
+                #if pygame.Rect.colliderect(collidable.rect, newRectx):
                 #    if velocity[0] >= 0:
                 #        collidingDirections.append("r")
                 #        self.rect.right = collidable.rect.left
@@ -225,8 +228,6 @@ class PhysicsObject(pygame.sprite.Sprite):
                 #        collidingDirections.append("d")
                 #        self.rect.bottom = collidable.rect.top
 
-        if not "d" in collidingDirections:
-            self.isGrounded = False
         for direction in collidingDirections:
             if not direction in self.blockedMotion:
                 self.blockedMotion.append(direction)
@@ -241,7 +242,7 @@ class PhysicsObject(pygame.sprite.Sprite):
     ):
         if len(axis) > 0:
             axis = axis[0:1] #data validation to ensure axis is 1 character
-        if direction == "l" or direction == "u": #dirEffect is used to ensure magnitude follows PYGAME's convention (-) = left or up, (+) = down or right
+        if direction == "l" or direction == "d": #dirEffect is used to ensure magnitude follows the convention (-) = left or down, (+) = up or right
             dirEffect = -1
         else:
             dirEffect = 1
@@ -285,8 +286,8 @@ class PhysicsObject(pygame.sprite.Sprite):
         if self.simulated:
             self.recalculateResultantForce() #methods are called in dependency order i.e. ResForce is required for getAcceleration() which is required for getVelocity(), etc.
             self._acceleration = self.getAcceleration()
-            self.getVelocity()
-            self.displaceObject(collidableObjects=collidableObjects)
+            velocityChanged, initialVelocity, finalVelocity, directionChanged = self.getVelocity()
+            self.displaceObject(velocityChanged=velocityChanged, initialVelocity=initialVelocity, finalVelocity=finalVelocity, directionChanged=directionChanged, collidableObjects=collidableObjects)
 
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())
             screen.blit(self.image, self.rect)
@@ -389,16 +390,8 @@ class Entity(PhysicsObject):
                 self.attackCooldown = operators[operator](self.attackCooldown, magnitude)
     
     def jump(self):
-        self._velocity.y -= self._jumpForce
+        self._velocity.y += self._jumpForce
         self.isGrounded = False
-    
-    def modifySpeedCap(self, axis: str, magnitude: float):
-        if len(axis) > 1:
-            axis = axis[0:1]
-        if axis == "x":
-            self._velocityCap.x += magnitude*self._speed #type: ignore
-        else:
-            self._velocityCap.y += magnitude*self._speed #type: ignore
     
     def update(self, collidableObjects):
         for key in self._effects.keys():
@@ -411,8 +404,8 @@ class Entity(PhysicsObject):
 
             self.recalculateResultantForce()
             self._acceleration = self.getAcceleration(accelerationMultiplier=self._speed)
-            self.getVelocity()
-            self.displaceObject(collidableObjects=collidableObjects)
+            velocityChanged, initialVelocity, finalVelocity, directionChanged = self.getVelocity()
+            self.displaceObject(velocityChanged=velocityChanged, initialVelocity=initialVelocity, finalVelocity=finalVelocity, directionChanged=directionChanged, collidableObjects=collidableObjects)
 
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())
             screen.blit(self.image, self.rect)
@@ -451,8 +444,6 @@ class Player(Entity):
         )
         self.inventory = {}
         self.__offset = offset
-        self.fastFalling = False
-        self.crouched = False
         self.weapon = Weapon(pID=startingWeaponID, startingPosition=pygame.Vector2(round(self.rect.centerx + self.__offset.x), round(self.rect.centery + self.__offset.y))) #TODO: change once default weapon implemented
     
     def pickupItem(self, ID: int, replaces: str):
@@ -510,8 +501,8 @@ class Player(Entity):
 
             self.recalculateResultantForce()
             self._acceleration = self.getAcceleration(accelerationMultiplier=self._speed)
-            directionChanged = self.getVelocity()
-            displacement = self.displaceObject(collidableObjects=collidableObjects)
+            velocityChanged, initialVelocity, finalVelocity, directionChanged = self.getVelocity()
+            displacement = self.displaceObject(velocityChanged=velocityChanged, initialVelocity=initialVelocity, finalVelocity=finalVelocity, directionChanged=directionChanged, collidableObjects=collidableObjects)
             self.weapon.rect.center = (round(self.weapon.rect.centerx + displacement[0]), self.weapon.rect.centery)
             if directionChanged:
                 self.weapon.image = pygame.transform.flip(self.image, True, False) #flip the weapon sprite on the x axis
@@ -602,135 +593,3 @@ class Item(pygame.sprite.Sprite):
     
     def killSelf(self):
         self.kill()
-
-screenWidth = 800
-screenHeight = screenWidth*0.8 #keep the ratio for w-h at 1:0.8 - could change later
-
-pygame.init()
-
-screen = pygame.display.set_mode((screenWidth, screenHeight))
-clock = pygame.time.Clock()
-paused = False
-
-FPS = 60
-
-#player = pygame.sprite.GroupSingle()
-player = Player(
-    offset=pygame.math.Vector2(25, 0),
-    jumpForce=50, #pixels/second
-    maxHP=100,
-    defense=5,
-    speed=1,
-    pAttackCooldown=0.75,
-    pSize=pygame.math.Vector2(50, 50),
-    spritePath="Sprites/DefaultSprite.png", #path to the player's sprite goes here
-    pTag="player",
-    pMass=5,
-    startingPosition=pygame.math.Vector2(screenWidth/2, screenHeight/2),
-    startingVelocity=pygame.math.Vector2(0, 0),
-    pVelocityCap=pygame.math.Vector2(35, 35),
-    startingWeaponID=0
-)
-
-walls = pygame.sprite.Group()
-walls.add(
-    WallObj(
-        size=pygame.Vector2(500, 100),
-        position=pygame.math.Vector2(screenWidth/2, (screenHeight/2)+250), #position the floor beneath the player
-        spritePath="Sprites/DefaultSprite.png", #placeholder for actual image path in development
-        pTag="floor"
-    )
-)
-
-running = True
-
-while running:
-    clock.tick(FPS)
-
-    events = pygame.event.get()
-
-    for event in events:
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-
-    keys = pygame.key.get_pressed()
-
-    #cycle through all potential movement inputs
-    if (keys[pygame.K_w] or keys[pygame.K_SPACE]) and player.isGrounded and not "u" in player.blockedMotion:
-        player.jump()
-    
-    if keys[pygame.K_a] and not player.containsForce(axis="x", ref="UserInputLeft") and not "l" in player.blockedMotion and not player.crouched:
-        player.addForce(axis="x", direction="l", ref="UserInputLeft", magnitude=2500)
-    elif not keys[pygame.K_a]:
-        player.removeForce(axis="x", ref="UserInputLeft")
-    
-    if keys[pygame.K_d] and not player.containsForce(axis="x", ref="UserInputRight") and not "r" in player.blockedMotion and not player.crouched:
-        player.addForce(axis="x", direction="r", ref="UserInputRight", magnitude=2500)
-    elif not keys[pygame.K_d]:
-        player.removeForce(axis="x", ref="UserInputRight")
-    
-    #if keys[pygame.K_s] and not player.fastFalling and not "d" in player.blockedMotion: #are we falling and holding S?
-    #    player.fastFalling = True #fast fall
-    #    player.modifySpeedCap(axis="y", magnitude=15)
-    #elif not keys[pygame.K_s] and player.fastFalling: #then are we not holding S and fast falling?
-    #    player.fastFalling = False #stop fast falling
-    #    player.modifySpeedCap(axis="y", magnitude=-15)
-    #elif keys[pygame.K_s] and player.isGrounded: #then are we holding S while grounded?
-    #    player.crouched = True #crouch
-    #    if player.fastFalling:
-    #        player.fastFalling = False #make sure the program recognises we aren't fast falling anymore
-    #        player.modifySpeedCap(axis="y", magnitude=-15)
-    #    player.rect.height = round(player.rect.height/2) #make the player half as tall
-    #elif (not keys[pygame.K_s] or not player.isGrounded) and player.crouched: #are we crouched while either falling or not holding S?
-    #    player.crouched = False
-    #    player.rect.height = player.rect.height*2
-    
-    if keys[pygame.K_s]:
-        if not player.containsForce(axis="y", ref="UserInputDown") and not player.isGrounded:
-            player.fastFalling = True #start fast falling
-            player.addForce(axis="y", direction="d", ref="UserInputDown", magnitude=2500)
-            player.modifySpeedCap(axis="y", magnitude=15)
-        elif player.isGrounded:
-            if player.fastFalling: #are we fast falling
-                player.fastFalling = False #stop fast falling
-                player.modifySpeedCap(axis="y", magnitude=-15) #change speed cap back
-            player.removeForce(axis="y", ref="UserInputDown")
-            if not player.crouched:
-                player.rect.height //= 2 #make player shorter
-                player.rect.centery += player.rect.height
-                player.crouched = True #crouch
-        elif not player.isGrounded:
-            if player.crouched: #if we're crouched
-                player.crouched = False #uncrouch
-                player.rect.centery -= player.rect.height #move centre to correct position
-                player.rect.height *= 2 #make player taller
-    else: #not holding S
-        player.removeForce(axis="y", ref="UserInputDown") #remove downwards force
-        if player.crouched:
-            player.crouched = False #uncrouch
-            player.rect.centery -= player.rect.height #move centre up
-            player.rect.height *= 2 #make player taller again
-        if player.fastFalling:
-            player.modifySpeedCap(axis="y", magnitude=-15) #stop fast falling
-            player.fastFalling = False
-    
-    if keys[pygame.K_q]:
-        player.rect.center = (round(screenWidth/2), round(screenHeight/2))
-
-    print(f"xForces{player._xForces}")
-    print(f"yForces{player._yForces}")
-    
-
-    #update all objects (this includes collision detection)
-    player.update(collidableObjects=walls)
-    walls.update()
-
-    print(f"Pos{player.rect.center}")
-
-    #draw groups and update display
-    screen.fill((0, 0, 0)) #rgb value for black background
-    #player.draw(screen)
-    pygame.draw.rect(screen, (255, 0, 0), player.rect)
-    walls.draw(screen)
-    pygame.display.flip()

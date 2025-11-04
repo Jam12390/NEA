@@ -109,10 +109,10 @@ class Entity(PhysicsObject):
                 self.attackCooldown = operators[operator](self.attackCooldown, magnitude)
     
     def jump(self):
-        self._velocity.x += self._jumpForce
+        self._velocity.y += self._jumpForce
         self.isGrounded = False
     
-    def update(self, collidableObjects: list):
+    def update(self, collidableObjects):
         for key in self._effects.keys():
             self._effects[key][1] -= 1/FPS #FPS is a global variable denoting the number of game updates per second - 1/FPS is the time since last frame
             if self._effects[key][1] <= 0:
@@ -127,4 +127,4 @@ class Entity(PhysicsObject):
             self.displaceObject(velocityChanged=velocityChanged, initialVelocity=initialVelocity, finalVelocity=finalVelocity, directionChanged=directionChanged, collidableObjects=collidableObjects)
 
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())
-            screen.blit(self.gameObj, self.rect)
+            screen.blit(self.image, self.rect)

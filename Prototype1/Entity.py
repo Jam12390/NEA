@@ -136,9 +136,9 @@ class Entity(PhysicsObject):
                 self.removeEffect(ID=int(key.split("-")[0]), instance=key.split("-")[1], forced=False)
 
         if self.simulated:
-            self._recalculateAttributes()
+            #self._recalculateAttributes()
 
-            self.recalculateResultantForce(forceMult=self._speed, includedForces=[])
+            self._resultantForce = self.recalculateResultantForce(forceMult=self._speed, includedForces=[])
             self._acceleration = self.getAcceleration()
             self.getVelocity()
             self.displaceObject(collidableObjects=collidableObjects)

@@ -22,8 +22,8 @@ FPS = 60
 #player = pygame.sprite.GroupSingle()
 player = Player(
     FPS=FPS,
-    offset=pygame.math.Vector2(25, 0),
-    jumpForce=50, #pixels/second
+    offset=pygame.math.Vector2(50, 25),
+    jumpForce=75, #pixels/second
     maxHP=100,
     defense=5,
     speed=1,
@@ -42,7 +42,7 @@ walls = pygame.sprite.Group()
 walls.add(
     WallObj(
         size=pygame.Vector2(500, 100),
-        position=pygame.Vector2(screenWidth/2, (screenHeight/2)+150), #position the floor beneath the player
+        position=pygame.Vector2(screenWidth/2, (screenHeight/2)+200), #position the floor beneath the player
         spritePath="Sprites/DefaultSprite.png", #placeholder for actual image path in development
         pTag="floor",
         frictionCoef=1.25
@@ -102,6 +102,9 @@ def mainloop():
                 if event.key == pygame.K_ESCAPE and not inventoryOpen:
                     paused = True
                     pauseMenu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if not player.weapon.currentlyAttacking:
+                    player.weapon.attack(parent=player)
 
             if event.type == pygame.QUIT:
                 quit()
@@ -170,11 +173,12 @@ def mainloop():
 
             if keys[pygame.K_q]: #debug code, resets the player position to center
                 player.rect.center = (round(screenWidth/2), round(screenHeight/2))
+                player._velocity = pygame.Vector2(0,0)
 
 
             #print(f"xForces{player._xForces}")
-            print(f"yForces{player._yForces}")
-            print(player._velocity.y)
+            #print(f"yForces{player._yForces}")
+            #print(player._velocity.y)
             #print(player._resultantForce.x)
 
             screen.fill((0, 0, 0)) #rgb value for black background
@@ -182,6 +186,10 @@ def mainloop():
             #update all objects (this includes collision detection)
             player.update(collidableObjects=[walls, items])
             screen.blit(player.image, player.rect)
+
+            if player.weapon.currentlyAttacking:
+                screen.blit(player.weapon.image, player.weapon.rect)
+
             walls.update()
             for sprite in walls:
                 screen.blit(sprite.image, sprite.rect)

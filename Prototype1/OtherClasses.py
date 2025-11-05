@@ -13,7 +13,7 @@ class Weapon(pygame.sprite.Sprite):
         self.damage = allWeapons[pID]["damage"]
         self.currentlyAttacking = False
         self.__attackTimer = 0
-        self.__anim = {} #placeholder for anim dictionary
+        self.__anim = {"time": 1.5} #placeholder for anim dictionary
     
     def playAnim(self):
         pass

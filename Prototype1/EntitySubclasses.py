@@ -2,6 +2,7 @@ import pygame
 from Entity import Entity
 from OtherClasses import Weapon
 from dictionaries import allItems
+import math
 
 hardVCap = (-75, 75)
 
@@ -43,7 +44,9 @@ class Player(Entity):
         self.__offset = offset
         self.fastFalling = False
         self.crouched = False
-        self.weapon = Weapon(FPS=FPS, pID=startingWeaponID, startingPosition=pygame.Vector2(round(self.rect.centerx + self.__offset.x), round(self.rect.centery + self.__offset.y))) #TODO: change once default weapon implemented
+        self.weapon = Weapon(FPS=FPS, pID=startingWeaponID, startingPosition=pygame.Vector2(round(self.rect.centerx + self.__offset.x), round(self.rect.centery + self.__offset.y)))
+        self.facing = "r"
+        self.changeDirFrames = 0
     
     def pickupItem(self, ID: int, replaces: str):
         newData = None
@@ -92,9 +95,19 @@ class Player(Entity):
             splitEffects = [item.split(" ") for item in splitValue]
             for effect in splitEffects:
                 self.modifyStat(effect[0], effect[1], effect[2])
-            
-        self._velocityCap.x = max(self._velocityCap.x, self._velocityCap.x*self._speed) #increase speed cap by a factor of _speed
-        self._velocityCap.y = max(self._velocityCap.y, self._velocityCap.y*self._speed)
+        
+        #increase speed cap by a factor of _speed
+        if self._baseVCap.x * self._speed > self._baseVCap.x:
+            self._velocityCap.x = self._baseVCap.x * self._speed
+        else:
+            self._velocityCap.x = self._baseVCap.x
+        if self._baseVCap.y * self._speed > self._baseVCap.y:
+            self._velocityCap.y = self._baseVCap.y * self._speed
+        else:
+            self._velocityCap.y = self._baseVCap.y
+        
+        self._baseVCap = pygame.Vector2(35, 35)
+
         self._velocityCap.x = max(hardVCap[0], min(self._velocityCap.x, hardVCap[1]))
         self._velocityCap.y = max(hardVCap[0], min(self._velocityCap.y, hardVCap[1]))
 
@@ -105,18 +118,29 @@ class Player(Entity):
                 self.removeEffect(ID=int(key.split("-")[0]), instance=key.split("-")[1], forced=False)
 
         if self.simulated:
-            self._recalculateAttributes()
+            #self._recalculateAttributes()
 
-            self.recalculateResultantForce(forceMult=self._speed, includedForces=["UserInputLeft", "UserInputRight", "UserInputDown"])
+            self._resultantForce = self.recalculateResultantForce(forceMult=self._speed, includedForces=["UserInputLeft", "UserInputRight", "UserInputDown"])
             self._acceleration = self.getAcceleration()
             directionChanged = self.getVelocity()
             displacement = self.displaceObject(collidableObjects=collidableObjects)
-            self.weapon.rect.center = (round(self.weapon.rect.centerx + displacement[0]), self.weapon.rect.centery)
+
+            if round(displacement.x) != 0: #if we are actually registering movement
+                if self._velocity.x < 0: #then allow self.facing to change
+                    self.facing = "l"
+                else:
+                    self.facing = "r"
+
             if directionChanged:
-                self.weapon.image = pygame.transform.flip(self.image, True, False) #flip the weapon sprite on the x axis
-                if self._velocity.x < 0: #right -> left
-                   self.weapon.rect.center = (round(self.weapon.rect.centerx - (self.__offset.x * 2)), self.weapon.rect.centery) #move the weapon center left by 2*offset to swap the side it's attached to
-                else: #left -> right
-                    self.weapon.rect.center = (round(self.weapon.rect.centerx + (self.__offset.x * 2)), self.weapon.rect.centery)
+                self.weapon.image = pygame.transform.flip(self.image, True, False)
+            
+            if self.facing == "l":
+                self.weapon.rect.right = round(self.rect.left + self.__offset.x)
+            else:
+                self.weapon.rect.left = self.rect.right
+            
+            self.weapon.rect.centery = round(self.rect.centery + self.__offset.y)
+            #self.weapon.rect.center = (round(self.rect.centerx + self.__offset.x * 2 * directionEffect), round(self.rect.centery + self.__offset.y))
+            self.weapon.update()
 
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())

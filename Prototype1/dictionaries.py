@@ -7,11 +7,18 @@ allEffects = {}
 
 allItems = {
     0: {
-        "imgPath": "Sprites/DefaultSprite.png",
+        "imgPath": "Sprites/DefaultItemSprite.png",
         "name": "TestItem",
-        "replaces": "None",
+        "replaces": "1",
         "description": "A test item... Should make you move really fast",
-        "effects": "speed * 10",
+        "effects": "speed * 5",
+    },
+    1: {
+        "imgPath": "Sprites/DefaultItemSprite.png",
+        "name": "TheOtherTestItem",
+        "replaces": "0",
+        "description": "A test item... Should replace ID 0",
+        "effects": "speed * 0.5",
     }
 }
 

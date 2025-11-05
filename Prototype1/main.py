@@ -42,7 +42,7 @@ walls = pygame.sprite.Group()
 walls.add(
     WallObj(
         size=pygame.Vector2(500, 100),
-        position=pygame.Vector2(screenWidth/2, (screenHeight/2)+250), #position the floor beneath the player
+        position=pygame.Vector2(screenWidth/2, (screenHeight/2)+150), #position the floor beneath the player
         spritePath="Sprites/DefaultSprite.png", #placeholder for actual image path in development
         pTag="floor",
         frictionCoef=1.25
@@ -58,6 +58,18 @@ items.add(
             itemID=0,
             replaces=allItems[0]["replaces"],
             pos=(screenWidth/2 + 150, (screenHeight/2) + 50),
+            size=(400, 150)
+        ),
+    )
+)
+items.add(
+    Item(
+        pID=1,
+        startingPosition=pygame.Vector2(screenWidth/2 - 150, (screenHeight/2)+175),
+        UIWindow=ItemUIWindow(
+            itemID=1,
+            replaces=allItems[1]["replaces"],
+            pos=(screenWidth/2 - 150, (screenHeight/2) + 50),
             size=(400, 150)
         )
     )
@@ -79,6 +91,10 @@ def mainloop():
 
         for event in events:
             if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_e:
+                    for item in items:
+                        if item.UIWindow.shown:
+                            item.pickup(target=player)
                 if event.key == pygame.K_i:
                     inventoryOpen = True
                     paused = True
@@ -152,17 +168,14 @@ def mainloop():
                     player.modifySpeedCap(axis="y", magnitude=-15) #stop fast falling
                     player.fastFalling = False
 
-            if keys[pygame.K_e]:
-                for item in items:
-                    if item.UIWindow.shown:
-                        item.pickup(target=player)
-
             if keys[pygame.K_q]: #debug code, resets the player position to center
                 player.rect.center = (round(screenWidth/2), round(screenHeight/2))
 
 
             #print(f"xForces{player._xForces}")
-            #print(f"yForces{player._yForces}")
+            print(f"yForces{player._yForces}")
+            print(player._velocity.y)
+            #print(player._resultantForce.x)
 
             screen.fill((0, 0, 0)) #rgb value for black background
 
@@ -193,8 +206,10 @@ def inventory():
     global paused
     font = pygame.font.SysFont("Calibri", 20)
     title = font.render("Inventory", False, (255, 255, 255))
-    exSubtitle = font.render("TestData", False, (255, 255, 255))
+    itemHeaders = [[font.render(f"{allItems[ID]["name"]} - ", False, (255, 255, 255)), font.render(f"Effects: {allItems[ID]["effects"]}", False, (255, 255, 255))] for ID in player.inventory.keys()]
+    itemDescriptions = [font.render(item[1], False, (255, 255, 255)) for item in player.inventory.values()]
     while inventoryOpen:
+        startingPos = [10, 50]
         clock.tick(FPS) #cool note: ticking the clock twice imitates slow motion (at the cost of FPS ofc)
         screen.blit(player.image, player.rect)
         walls.draw(screen)
@@ -209,7 +224,12 @@ def inventory():
         background.fill((0, 0, 125))
 
         background.blit(title, (10,10))
-        background.blit(exSubtitle, (10, 50))
+        for itemIndex in range(0, len(itemHeaders)):
+            background.blit(itemHeaders[itemIndex][0], (startingPos[0], startingPos[1]))
+            background.blit(itemHeaders[itemIndex][1], (startingPos[0] + pygame.Surface.get_rect(itemHeaders[itemIndex][0]).right, startingPos[1]))
+            startingPos[1] += 25
+            background.blit(itemDescriptions[itemIndex], (startingPos[0], startingPos[1]))
+            startingPos[1] += 50
 
         screen.blit(background, (25, 50))
 
@@ -240,8 +260,9 @@ def pauseMenu():
         startingPos.y += renderedText[0].size.y + 25
     
     while paused:
-        pygame.draw.rect(screen, (255, 0, 0), player.rect)
+        screen.blit(player.image, player.rect)
         walls.draw(screen)
+        items.draw(screen)
 
         dim = pygame.Surface((screenWidth, screenHeight))
         dim.fill((0,0,0))

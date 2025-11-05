@@ -33,13 +33,17 @@ class PhysicsObject(pygame.sprite.Sprite):
         self.blockedMotion = []
         self.isGrounded = False
     
-    def recalculateResultantForce(self):
+    def recalculateResultantForce(self, forceMult: float = 1, includedForces: list = []):
         resXForce = 0
         resYForce = 0
-        for force in self._xForces.values(): #sum of horizontal forces
-            resXForce += force
-        for force in self._yForces.values(): #sum of vertical forces
-            resYForce += force
+
+        xForces, xForceKeys = [force for force in self._xForces.values()], [key for key in self._xForces.keys()]
+        yForces, yForceKeys = [force for force in self._yForces.values()], [key for key in self._yForces.keys()]
+
+        for index in range(0, len(xForces)): #sum of horizontal forces
+            resXForce += xForces[index] if xForceKeys[index] not in includedForces else xForces[index] * forceMult
+        for index in range(0, len(yForces)): #sum of vertical forces
+            resYForce += yForces[index] if yForceKeys[index] not in includedForces else yForces[index] * forceMult
         self._resultantForce = pygame.math.Vector2(resXForce, resYForce) #store as vector2 (easier for later operations)
         #print(f"ResForce{self._resultantForce}")
     
@@ -150,6 +154,31 @@ class PhysicsObject(pygame.sprite.Sprite):
         newRecty.center = (newRecty.center[0], round(newRectx.center[1] + displacement.y))
 
         self.rect.center = (round(self.rect.centerx + displacement.x), round(self.rect.centery + displacement.y))
+
+        #for group in collidableObjects:
+        #    for collidable in group:
+        #        if collidable.tag == "item" and self.tag == "player":
+        #            if pygame.Rect.colliderect(self.rect, collidable.rect):
+        #                collidable.UIWindow.shown = True
+        #            else:
+        #                collidable.UIWindow.shown = False
+#
+        #        if collidable.tag in ["wall", "floor"] and collidable.simulated: #thinking ahead for when objects are de-rendered to improve performance
+        #            if pygame.Rect.colliderect(collidable.rect, newRectx):
+        #                if self._velocity.x > 0.1:
+        #                    self.rect.right = collidable.rect.left
+        #                    collidingDirections.append("l")
+        #                elif self._velocity.x <= -0.1:
+        #                    self.rect.left = collidable.rect.right
+        #                    collidingDirections.append("r")
+        #            if pygame.Rect.colliderect(collidable.rect, newRecty):
+        #                if self._velocity.y > 0.1:
+        #                    self.rect.bottom = collidable.rect.top
+        #                    collidingDirections.append("u")
+        #                elif self._velocity < -0.1:
+        #                    self.rect.top = collidable.rect.bottom
+        #                    collidingDirections.append("d")
+
         for group in collidableObjects:
             for collidable in group:
                 if collidable.tag == "item" and self.tag == "player":
@@ -290,8 +319,21 @@ class PhysicsObject(pygame.sprite.Sprite):
     def __updateFriction(self, coef: dict):
         self.removeForce(axis="x", ref="xFriction")
         self.removeForce(axis="y", ref="yFriction")
+        self.removeForce(axis="x", ref="xAirResistance")
+        self.removeForce(axis="y", ref="yAirResistance")
+
+        xAirResistance = 0
+        yAirResistance = 0
+        xFriction = 0
+        yFriction = 0
 
         if not(-1 < self._velocity.x and self._velocity.x < 1):
+            if not ("d" in coef.keys() or "u" in coef.keys()):
+                xAirResistance = 0.5 * self._resultantForce.x
+        if not(-1 < self._velocity.y and self._velocity.y < 1):
+            if not ("l" in coef.keys() or "r" in coef.keys()):
+                yAirResistance = 0.5 * self._resultantForce.y
+
             xFriction = coef["d"]*self._resultantForce.y if "d" in coef.keys() else coef["u"]*self._resultantForce.y if "u" in coef.keys() else 0
             xDirection = "r" if self._velocity.x < 0 else "l"
         else:
@@ -307,6 +349,10 @@ class PhysicsObject(pygame.sprite.Sprite):
             self.addForce(axis="x", direction=xDirection, ref="xFriction", magnitude=xFriction) #direction will always be bound if friction != 0, so ignore
         if yFriction != 0:
             self.addForce(axis="y", direction=yDirection, ref="yFriction", magnitude=yFriction)
+        if xAirResistance != 0:
+            self.addForce(axis="x", direction="l" if self._velocity.x > 0 else "r", ref="xAirResistance", magnitude=xAirResistance)
+        if yAirResistance != 0:
+            self.addForce(axis="y", direction="d" if self._velocity.y < 0 else "u", ref="yAirResistance", magnitude=yAirResistance)
 
 
     def killSelf(self):

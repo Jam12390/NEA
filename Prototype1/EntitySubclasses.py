@@ -3,6 +3,8 @@ from Entity import Entity
 from OtherClasses import Weapon
 from dictionaries import allItems
 
+hardVCap = (-75, 75)
+
 class Player(Entity):
     def __init__(
             self,
@@ -51,10 +53,10 @@ class Player(Entity):
             self.weapon = Weapon(FPS=self.FPS, pID=ID, startingPosition=pygame.Vector2(round(self.rect.centerx + self.__offset.x), round(self.rect.centery + self.__offset.y))) #and replace it with a new instance of the picked up weapon
         
         elif replaces.isdigit(): #if replaces is an ID (defaults to item)
-            if ID in self.inventory.keys(): #presence check for item to replace
-                newData = ID
-                self.inventory.pop(ID) #delete it
-            self.inventory[ID] = ["item", allItems[ID]["details"], 1] #add the new item to the inventory
+            if int(replaces) in self.inventory.keys(): #presence check for item to replace
+                newData = int(replaces)
+                self.inventory.pop(int(replaces)) #delete it
+            self.inventory[ID] = ["item", allItems[ID]["description"], 1] #add the new item to the inventory
         
         elif ID in self.inventory.keys(): #if there is nothing to replace and the item is in the inventory
             self.inventory[ID][2] += 1 #increment the quantity of said item
@@ -91,8 +93,11 @@ class Player(Entity):
             for effect in splitEffects:
                 self.modifyStat(effect[0], effect[1], effect[2])
             
-        self._velocityCap *= self._speed #increase speed cap by a factor of _speed
-    
+        self._velocityCap.x = max(self._velocityCap.x, self._velocityCap.x*self._speed) #increase speed cap by a factor of _speed
+        self._velocityCap.y = max(self._velocityCap.y, self._velocityCap.y*self._speed)
+        self._velocityCap.x = max(hardVCap[0], min(self._velocityCap.x, hardVCap[1]))
+        self._velocityCap.y = max(hardVCap[0], min(self._velocityCap.y, hardVCap[1]))
+
     def update(self, collidableObjects):
         for key in self._effects.keys():
             self._effects[key][1] -= 1/self.FPS #FPS is a global variable denoting the number of game updates per second - 1/FPS is the time since last frame
@@ -102,8 +107,8 @@ class Player(Entity):
         if self.simulated:
             self._recalculateAttributes()
 
-            self.recalculateResultantForce()
-            self._acceleration = self.getAcceleration(accelerationMultiplier=self._speed)
+            self.recalculateResultantForce(forceMult=self._speed, includedForces=["UserInputLeft", "UserInputRight", "UserInputDown"])
+            self._acceleration = self.getAcceleration()
             directionChanged = self.getVelocity()
             displacement = self.displaceObject(collidableObjects=collidableObjects)
             self.weapon.rect.center = (round(self.weapon.rect.centerx + displacement[0]), self.weapon.rect.centery)

@@ -10,6 +10,8 @@ operators = {
     "/": operator.truediv
 }
 
+hardVCap = (-75, 75)
+
 class Entity(PhysicsObject):
     def __init__(
             self,
@@ -94,7 +96,13 @@ class Entity(PhysicsObject):
             for effect in splitEffects:
                 self.modifyStat(effect[0], effect[1], effect[2])
             
-        self._velocityCap *= self._speed #increase speed cap by a factor of _speed
+        #self._velocityCap *= self._speed #increase speed cap by a factor of _speed
+        #self._velocityCap = max(vCapClamp*-1, min(vCapClamp, self._velocityCap.x))
+
+        self._velocityCap.x = max(self._velocityCap.x, self._velocityCap.x*self._speed) #increase speed cap by a factor of _speed
+        self._velocityCap.y = max(self._velocityCap.y, self._velocityCap.y*self._speed)
+        self._velocityCap.x = max(hardVCap[0], min(self._velocityCap.x, hardVCap[1]))
+        self._velocityCap.y = max(hardVCap[0], min(self._velocityCap.y, hardVCap[1]))
     
     def modifyStat(self, stat: str, operator: str, magnitude: float):
         match stat:
@@ -110,7 +118,7 @@ class Entity(PhysicsObject):
                 self.attackCooldown = operators[operator](self.attackCooldown, magnitude)
     
     def jump(self):
-        self._velocity.y -= self._jumpForce
+        self._velocity.y = -self._jumpForce
         self.isGrounded = False
     
     def modifySpeedCap(self, axis: str, magnitude: float):
@@ -130,8 +138,8 @@ class Entity(PhysicsObject):
         if self.simulated:
             self._recalculateAttributes()
 
-            self.recalculateResultantForce()
-            self._acceleration = self.getAcceleration(accelerationMultiplier=self._speed)
+            self.recalculateResultantForce(forceMult=self._speed, includedForces=[])
+            self._acceleration = self.getAcceleration()
             self.getVelocity()
             self.displaceObject(collidableObjects=collidableObjects)
 

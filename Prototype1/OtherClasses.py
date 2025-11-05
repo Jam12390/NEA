@@ -66,6 +66,8 @@ class ItemUIWindow(pygame.sprite.Sprite):
         self.shown = False
         self.size = size
 
+        self.pos = pos
+
         font = pygame.font.SysFont("Calibri", 16)
         textColour = (0, 0, 0)
         self.title = font.render(f"{self.itemID} - {itemName}", False, textColour)
@@ -117,6 +119,15 @@ class Item(pygame.sprite.Sprite):
             self.killSelf()
         else:
             self.swapItem(newID=newData)
+            bufferPos = self.UIWindow.pos
+            bufferSize = self.UIWindow.size
+            self.UIWindow.killSelf()
+            self.UIWindow = ItemUIWindow(
+                itemID=self.ID,
+                replaces=self.__replaces,
+                pos=bufferPos,
+                size=bufferSize
+            )
     
     def swapItem(self, newID: int):
         self.ID = newID

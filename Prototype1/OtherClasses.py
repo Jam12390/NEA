@@ -7,7 +7,7 @@ class Weapon(pygame.sprite.Sprite):
         self.ID = pID
         self.FPS = FPS
         self.__replaces = "weapon"
-        self.image = pygame.transform.smoothscale(pygame.image.load(allWeapons[pID]["imgPath"]), (100, 100))
+        self.image = pygame.transform.smoothscale(pygame.image.load(allWeapons[pID]["imgPath"]), (25, 25))
         self.rect = pygame.Surface.get_rect(self.image)
         self.rect.center = (round(startingPosition.x), round(startingPosition.y))
         self.damage = allWeapons[pID]["damage"]

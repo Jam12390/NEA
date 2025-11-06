@@ -10,7 +10,6 @@ class Player(Entity):
     def __init__(
             self,
             FPS: int,
-            offset: pygame.Vector2,
             jumpForce: float,
             maxHP: int,
             defense: int,
@@ -41,19 +40,18 @@ class Player(Entity):
             pTag=pTag
         )
         self.inventory = {}
-        self.__offset = offset
         self.fastFalling = False
         self.crouched = False
-        self.weapon = Weapon(FPS=FPS, pID=startingWeaponID, startingPosition=pygame.Vector2(round(self.rect.centerx + self.__offset.x), round(self.rect.centery + self.__offset.y)))
+        self.weapon = Weapon(FPS=FPS, pID=startingWeaponID, startingPosition=pygame.Vector2(round(self.rect.centerx), round(self.rect.centery)))
         self.facing = "r"
-        self.changeDirFrames = 0
+        self.ignoreAccelFrames = 0
     
     def pickupItem(self, ID: int, replaces: str):
         newData = None
         if replaces == "weapon":
             newData = self.weapon.ID
             self.weapon.killSelf() #destroy the current weapon
-            self.weapon = Weapon(FPS=self.FPS, pID=ID, startingPosition=pygame.Vector2(round(self.rect.centerx + self.__offset.x), round(self.rect.centery + self.__offset.y))) #and replace it with a new instance of the picked up weapon
+            self.weapon = Weapon(FPS=self.FPS, pID=ID, startingPosition=pygame.Vector2(round(self.rect.centerx), round(self.rect.centery))) #and replace it with a new instance of the picked up weapon
         
         elif replaces.isdigit(): #if replaces is an ID (defaults to item)
             if int(replaces) in self.inventory.keys(): #presence check for item to replace
@@ -84,7 +82,7 @@ class Player(Entity):
             if value[0] == "item":
                 splitValue = allItems[key]["effects"].split(", ")
                 splitEffects = [item.split(" ") for item in splitValue] #double split to cover effects which affect multiple attributes
-                for effect in splitEffects: #effedct is now in format [variableAffected: string, operator: string, operand: float]
+                for effect in splitEffects: #effect is now in format [variableAffected: string, operator: string, operand: float]
                     for i in range(value[2]):
                         self.modifyStat(effect[0], effect[1], float(effect[2]))
 
@@ -110,10 +108,24 @@ class Player(Entity):
 
         self._velocityCap.x = max(hardVCap[0], min(self._velocityCap.x, hardVCap[1]))
         self._velocityCap.y = max(hardVCap[0], min(self._velocityCap.y, hardVCap[1]))
+    
+    def wallJump(self):
+        self.ignoreAccelFrames = 10 * max(1, self._speed/4)
 
+        if "l" in self.blockedMotion:
+            self._velocity.x = 50
+            self.rect.centerx += 3
+            self.facing = "r"
+        elif "r" in self.blockedMotion:
+            self._velocity.x = -50
+            self.rect.centerx -= 3
+            self.facing = "l"
+        
+        self._velocity.y = -40
+        
     def update(self, collidableObjects):
         for key in self._effects.keys():
-            self._effects[key][1] -= 1/self.FPS #FPS is a global variable denoting the number of game updates per second - 1/FPS is the time since last frame
+            self._effects[key][1] -= 1/self.FPS #FPS is set off a global variable to enable smooth motion
             if self._effects[key][1] <= 0:
                 self.removeEffect(ID=int(key.split("-")[0]), instance=key.split("-")[1], forced=False)
 
@@ -122,25 +134,33 @@ class Player(Entity):
 
             self._resultantForce = self.recalculateResultantForce(forceMult=self._speed, includedForces=["UserInputLeft", "UserInputRight", "UserInputDown"])
             self._acceleration = self.getAcceleration()
-            directionChanged = self.getVelocity()
+            if self.ignoreAccelFrames > 0:
+                match self.facing:
+                    case "l":
+                        self._acceleration.x = abs(self._acceleration.x) * -1
+                    case "r":
+                        self._acceleration.x = abs(self._acceleration.x)
+                self.ignoreAccelFrames -= 1
+            self.getVelocity()
             displacement = self.displaceObject(collidableObjects=collidableObjects)
 
             if round(displacement.x) != 0: #if we are actually registering movement
                 if self._velocity.x < 0: #then allow self.facing to change
+                    #if self.facing == "r":
+                    #    self.weapon.image = pygame.transform.flip(self.image, True, False)
                     self.facing = "l"
                 else:
+                    #if self.facing == "l":
+                    #    self.weapon.image = pygame.transform.flip(self.image, True, False)
                     self.facing = "r"
-
-            if directionChanged:
-                self.weapon.image = pygame.transform.flip(self.image, True, False)
             
-            if self.facing == "l":
-                self.weapon.rect.right = round(self.rect.left + self.__offset.x)
-            else:
-                self.weapon.rect.left = self.rect.right
+            match self.facing:
+                case "l":
+                    self.weapon.rect.right = round(self.rect.left)
+                case "r":
+                    self.weapon.rect.left = round(self.rect.right)
             
-            self.weapon.rect.centery = round(self.rect.centery + self.__offset.y)
-            #self.weapon.rect.center = (round(self.rect.centerx + self.__offset.x * 2 * directionEffect), round(self.rect.centery + self.__offset.y))
+            self.weapon.rect.centery = round(self.rect.centery)
             self.weapon.update()
 
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())

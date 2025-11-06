@@ -22,7 +22,6 @@ FPS = 60
 #player = pygame.sprite.GroupSingle()
 player = Player(
     FPS=FPS,
-    offset=pygame.math.Vector2(50, 25),
     jumpForce=75, #pixels/second
     maxHP=100,
     defense=5,
@@ -90,10 +89,10 @@ def mainloop():
         events = pygame.event.get()
 
         for event in events:
-            if event.type == pygame.KEYDOWN:
+            if event.type == pygame.KEYDOWN: #KEYDOWN is for events which should only happen once if the key is pressed i.e. The inventory should bw
                 if event.key == pygame.K_e:
                     for item in items:
-                        if item.UIWindow.shown:
+                        if item.UIWindow.shown: #if the UI is shown, the item is in pickup range
                             item.pickup(target=player)
                 if event.key == pygame.K_i:
                     inventoryOpen = True
@@ -115,6 +114,8 @@ def mainloop():
             #cycle through all potential movement inputs
             if (keys[pygame.K_w] or keys[pygame.K_SPACE]) and player.isGrounded and not "u" in player.blockedMotion:
                 player.jump()
+            elif (keys[pygame.K_w] or keys[pygame.K_SPACE]) and ("l" in player.blockedMotion or "r" in player.blockedMotion) and not player.isGrounded:
+                player.wallJump()
 
             if keys[pygame.K_a] and not player.containsForce(axis="x", ref="UserInputLeft") and not "l" in player.blockedMotion and not player.crouched:
                 player.addForce(axis="x", direction="l", ref="UserInputLeft", magnitude=2500)
@@ -125,22 +126,6 @@ def mainloop():
                 player.addForce(axis="x", direction="r", ref="UserInputRight", magnitude=2500)
             elif not keys[pygame.K_d]:
                 player.removeForce(axis="x", ref="UserInputRight")
-
-            #if keys[pygame.K_s] and not player.fastFalling and not "d" in player.blockedMotion: #are we falling and holding S?
-            #    player.fastFalling = True #fast fall
-            #    player.modifySpeedCap(axis="y", magnitude=15)
-            #elif not keys[pygame.K_s] and player.fastFalling: #then are we not holding S and fast falling?
-            #    player.fastFalling = False #stop fast falling
-            #    player.modifySpeedCap(axis="y", magnitude=-15)
-            #elif keys[pygame.K_s] and player.isGrounded: #then are we holding S while grounded?
-            #    player.crouched = True #crouch
-            #    if player.fastFalling:
-            #        player.fastFalling = False #make sure the program recognises we aren't fast falling anymore
-            #        player.modifySpeedCap(axis="y", magnitude=-15)
-            #    player.rect.height = round(player.rect.height/2) #make the player half as tall
-            #elif (not keys[pygame.K_s] or not player.isGrounded) and player.crouched: #are we crouched while either falling or not holding S?
-            #    player.crouched = False
-            #    player.rect.height = player.rect.height*2
 
             if keys[pygame.K_s]:
                 if not player.containsForce(axis="y", ref="UserInputDown") and not player.isGrounded:
@@ -175,6 +160,8 @@ def mainloop():
                 player.rect.center = (round(screenWidth/2), round(screenHeight/2))
                 player._velocity = pygame.Vector2(0,0)
 
+            if keys[pygame.K_e]:
+                 pass
 
             #print(f"xForces{player._xForces}")
             #print(f"yForces{player._yForces}")
@@ -185,43 +172,44 @@ def mainloop():
 
             #update all objects (this includes collision detection)
             player.update(collidableObjects=[walls, items])
-            screen.blit(player.image, player.rect)
-
-            if player.weapon.currentlyAttacking:
-                screen.blit(player.weapon.image, player.weapon.rect)
-
             walls.update()
-            for sprite in walls:
-                screen.blit(sprite.image, sprite.rect)
-            
             items.update()
-            for item in items:
-                if item.UIWindow.shown:
-                    item.UIWindow.update()
-                    screen.blit(item.UIWindow.surface, item.UIWindow.rect)
-
-            #print(f"Pos{player.rect.center}")
-
-            #draw groups and update display
-            #player.draw(screen)
-            #pygame.draw.rect(screen, (255, 0, 0), player.rect)
-            walls.draw(screen)
-            items.draw(screen)
+            redraw()
             pygame.display.flip()
+
+def redraw(): #it's important to note that redraw() DOES NOT update() any of the objects it's drawing
+    screen.blit(player.image, player.rect)
+
+    if player.weapon.currentlyAttacking:
+        screen.blit(player.weapon.image, player.weapon.rect)
+
+    for sprite in walls:
+        screen.blit(sprite.image, sprite.rect)
+    walls.draw(screen)
+    
+    for item in items:
+        if item.UIWindow.shown:
+            item.UIWindow.update()
+            screen.blit(item.UIWindow.surface, item.UIWindow.rect)
+    items.draw(screen)
 
 def inventory():
     global inventoryOpen
     global paused
     font = pygame.font.SysFont("Calibri", 20)
     title = font.render("Inventory", False, (255, 255, 255))
-    itemHeaders = [[font.render(f"{allItems[ID]["name"]} - ", False, (255, 255, 255)), font.render(f"Effects: {allItems[ID]["effects"]}", False, (255, 255, 255))] for ID in player.inventory.keys()]
+    itemHeaders = [
+        [
+            font.render(f"{allItems[ID]["name"]} - ", False, (255, 255, 255)),
+            font.render(f"Effects: {allItems[ID]["effects"]}", False, (255, 255, 255))
+        ]
+        for ID in player.inventory.keys() #makes separate lists for each item's name and headers in inventory
+    ]
     itemDescriptions = [font.render(item[1], False, (255, 255, 255)) for item in player.inventory.values()]
     while inventoryOpen:
         startingPos = [10, 50]
-        clock.tick(FPS) #cool note: ticking the clock twice imitates slow motion (at the cost of FPS ofc)
-        screen.blit(player.image, player.rect)
-        walls.draw(screen)
-        items.draw(screen)
+        #clock.tick(FPS) #note for future prototypes: ticking the clock twice imitates slow motion (at the cost of FPS ofc)
+        redraw()
 
         dim = pygame.Surface((screenWidth, screenHeight))
         dim.fill((0,0,0))
@@ -233,10 +221,10 @@ def inventory():
 
         background.blit(title, (10,10))
         for itemIndex in range(0, len(itemHeaders)):
-            background.blit(itemHeaders[itemIndex][0], (startingPos[0], startingPos[1]))
+            background.blit(itemHeaders[itemIndex][0], (startingPos[0], startingPos[1])) #itemHeaders[itemIndex] = [itemName, itemEffects]
             background.blit(itemHeaders[itemIndex][1], (startingPos[0] + pygame.Surface.get_rect(itemHeaders[itemIndex][0]).right, startingPos[1]))
             startingPos[1] += 25
-            background.blit(itemDescriptions[itemIndex], (startingPos[0], startingPos[1]))
+            background.blit(itemDescriptions[itemIndex], (startingPos[0], startingPos[1])) #itemDescriptions
             startingPos[1] += 50
 
         screen.blit(background, (25, 50))
@@ -268,9 +256,7 @@ def pauseMenu():
         startingPos.y += renderedText[0].size.y + 25
     
     while paused:
-        screen.blit(player.image, player.rect)
-        walls.draw(screen)
-        items.draw(screen)
+        redraw()
 
         dim = pygame.Surface((screenWidth, screenHeight))
         dim.fill((0,0,0))

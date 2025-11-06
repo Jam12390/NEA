@@ -48,29 +48,30 @@ class PhysicsObject(pygame.sprite.Sprite):
         return pygame.Vector2(resXForce, resYForce) #store as vector2 (easier for later operations)
         #print(f"ResForce{self._resultantForce}")
     
-    def getAcceleration(self, accelerationMultiplier: float = 1.0):
-        #print(f"Acceleration{(self._resultantForce / self._mass) * accelerationMultiplier}")
-        return (self._resultantForce / self._mass) * accelerationMultiplier
+    def getAcceleration(self):
+        return (self._resultantForce / self._mass) #a = F/m
     
     def getVelocity(self):
         initialVelocity = self._velocity
         velocityChanged = []
 
+        overflowReductionRate = 2
+
         if initialVelocity.x > self._velocityCap.x:
-            xVelocity = initialVelocity.x - 0.5
+            xVelocity = initialVelocity.x - overflowReductionRate
             xVelocity += self._acceleration.y*(1/self.FPS) if self._acceleration.y <= 0 else 0
         elif initialVelocity.x < self._velocityCap.x*-1:
-            xVelocity = initialVelocity.x + 0.5
+            xVelocity = initialVelocity.x + overflowReductionRate
             xVelocity += self._acceleration.y*(1/self.FPS) if self._acceleration.y >= 0 else 0
         else:
             xVelocity = self._velocity.x + self._acceleration.x*(1/self.FPS)
             xVelocity = max(self._velocityCap.x * -1, min(xVelocity, self._velocityCap.x)) #clamping xVelocity to _velocityCap.x
         
         if initialVelocity.y > self._velocityCap.y:
-            yVelocity = initialVelocity.y - 0.5
+            yVelocity = initialVelocity.y - overflowReductionRate
             yVelocity += self._acceleration.y*(1/self.FPS) if self._acceleration.y <= 0 else 0
         elif initialVelocity.y < self._velocityCap.y*-1:
-            yVelocity = initialVelocity.y + 0.5
+            yVelocity = initialVelocity.y + overflowReductionRate
             yVelocity += self._acceleration.y*(1/self.FPS) if self._acceleration.y >= 0 else 0
         else:
             yVelocity = self._velocity.y + self._acceleration.y*(1/self.FPS)
@@ -78,24 +79,7 @@ class PhysicsObject(pygame.sprite.Sprite):
 
         #print(f"Velocity{xVelocity, yVelocity}")
         
-        if xVelocity == initialVelocity.x: #check if either velocity has changed for displaceObject() equation
-            velocityChanged.append(False)
-        else:
-            velocityChanged.append(True)
-        
-        if yVelocity == initialVelocity.y:
-            velocityChanged.append(False)
-        else:
-            velocityChanged.append(True)
-        
-        if (initialVelocity.x < 0 and xVelocity >= 0) or (initialVelocity.x > 0 and xVelocity <= 0): #check if the object's weapon needs to change position
-            directionChanged = True
-        else:
-            directionChanged = False
-        
         self._velocity = pygame.Vector2(xVelocity, yVelocity)
-        
-        return directionChanged
 
     def getVelocityValue(self):
         return self._velocity
@@ -107,18 +91,9 @@ class PhysicsObject(pygame.sprite.Sprite):
             self,
             collidableObjects
     ):
-        #xDenominator = 1 if self._acceleration.x*2 == 0 else self._acceleration.x*2 #prevent /0 errors
-        #yDenominator = 1 if self._acceleration.y*2 == 0 else self._acceleration.y*2
-
-        if False:#velocityChanged[0]: #if the velocity has changed, use s = (v^2 - u^2)/(2*a)
-            xDisplacement = (finalVelocity.x**2 - initialVelocity.x**2)/xDenominator
-        else:
-            xDisplacement = self._velocity.x*5*(1/self.FPS)
         
-        if False:#velocityChanged[1]:
-            yDisplacement = (finalVelocity.y**2 - initialVelocity.y**2)/yDenominator
-        else:
-            yDisplacement = self._velocity.y*5*(1/self.FPS) #conversion of 1m -> 5pix?
+        xDisplacement = self._velocity.x*5*(1/self.FPS)
+        yDisplacement = self._velocity.y*5*(1/self.FPS) #conversion of 1m -> 5pix?
         
         #print(f"Displacement{xDisplacement, yDisplacement}")
 
@@ -183,7 +158,7 @@ class PhysicsObject(pygame.sprite.Sprite):
         for group in collidableObjects:
             for collidable in group:
                 if collidable.tag == "item" and self.tag == "player":
-                    if pygame.Rect.colliderect(self.rect, collidable.rect):
+                    if pygame.Rect.colliderect(self.rect, collidable.rect): #collidable is an item in the scene
                         collidable.UIWindow.shown = True
                     else:
                         collidable.UIWindow.shown = False
@@ -332,22 +307,18 @@ class PhysicsObject(pygame.sprite.Sprite):
 
         if not(-1 < self._velocity.x and self._velocity.x < 1):
             if not ("d" in coef.keys() or "u" in coef.keys()):
-                #xAirResistance = 0.5 * strippedResForce.x
-                xAirResistance = 0.5 * self._resultantForce.x
+                xAirResistance = 0.5 * strippedResForce.x
         if not(-1 < self._velocity.y and self._velocity.y < 1):
             if not ("l" in coef.keys() or "r" in coef.keys()):
-                #yAirResistance = 0.5 * strippedResForce.y
-                yAirResistance = 0.5 * self._resultantForce.y
+                yAirResistance = 0.5 * strippedResForce.y
 
-            #xFriction = coef["d"]*strippedResForce.y if "d" in coef.keys() else coef["u"]*strippedResForce.y if "u" in coef.keys() else 0
-            xFriction = coef["d"]*self._resultantForce.y if "d" in coef.keys() else coef["u"]*strippedResForce.y if "u" in coef.keys() else 0
+            xFriction = coef["d"]*strippedResForce.y if "d" in coef.keys() else coef["u"]*strippedResForce.y if "u" in coef.keys() else 0
             xDirection = "r" if self._velocity.x < 0 else "l"
         else:
             xFriction = 0
         
         if not(-1 < self._velocity.x and self._velocity.x < 1):
-            #yFriction = coef["l"]*strippedResForce.y if "l" in coef.keys() else coef["r"]*strippedResForce.y if "r" in coef.keys() else 0
-            yFriction = coef["l"]*self._resultantForce.y if "l" in coef.keys() else coef["r"]*strippedResForce.y if "r" in coef.keys() else 0
+            yFriction = coef["l"]*strippedResForce.y if "l" in coef.keys() else coef["r"]*strippedResForce.y if "r" in coef.keys() else 0
             yDirection = "d" if self._velocity.y > 0 else "u"
         else:
             yFriction = 0

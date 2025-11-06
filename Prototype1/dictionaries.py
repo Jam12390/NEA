@@ -7,14 +7,14 @@ allEffects = {}
 
 allItems = {
     0: {
-        "imgPath": "Sprites/DefaultItemSprite.png",
+        "imgPath": "Sprites/ItemSprite0.png",
         "name": "TestItem",
         "replaces": "1",
         "description": "A test item... Should make you move really fast",
         "effects": "speed * 5",
     },
     1: {
-        "imgPath": "Sprites/DefaultItemSprite.png",
+        "imgPath": "Sprites/ItemSprite1.png",
         "name": "TheOtherTestItem",
         "replaces": "0",
         "description": "A test item... Should replace ID 0",
@@ -24,7 +24,7 @@ allItems = {
 
 allWeapons = {
     0: {
-        "imgPath": "Sprites/DefaultSprite.png",
+        "imgPath": "Sprites/WeaponSprite0.png",
         "damage": 10
     }
 }

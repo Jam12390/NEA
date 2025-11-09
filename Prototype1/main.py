@@ -33,7 +33,7 @@ player = Player(
     pMass=5,
     startingPosition=pygame.math.Vector2(screenWidth/2, screenHeight/2),
     startingVelocity=pygame.math.Vector2(0, 0),
-    pVelocityCap=pygame.math.Vector2(35, 35),
+    pVelocityCap=pygame.math.Vector2(60, 60),
     startingWeaponID=0
 )
 
@@ -44,7 +44,7 @@ walls.add(
         position=pygame.Vector2(screenWidth/2, (screenHeight/2)+200), #position the floor beneath the player
         spritePath="Sprites/DefaultSprite.png", #placeholder for actual image path in development
         pTag="floor",
-        frictionCoef=1.25
+        frictionCoef=0.5
     )
 )
 
@@ -89,7 +89,11 @@ def mainloop():
         events = pygame.event.get()
 
         for event in events:
-            if event.type == pygame.KEYDOWN: #KEYDOWN is for events which should only happen once if the key is pressed i.e. The inventory should bw
+            '''
+            KEYDOWN is for events which should only happen once if the key is pressed.
+            i.e. I is likely to be held for 2-3 frames. If KEYDOWN wasn't used, the inventory screen would open and close rapidly.
+            '''
+            if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_e:
                     for item in items:
                         if item.UIWindow.shown: #if the UI is shown, the item is in pickup range
@@ -101,6 +105,8 @@ def mainloop():
                 if event.key == pygame.K_ESCAPE and not inventoryOpen:
                     paused = True
                     pauseMenu()
+                if event.key == pygame.K_SPACE and ("l" in player.blockedMotion or "r" in player.blockedMotion) and not player.isGrounded:
+                    player.wallJump()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if not player.weapon.currentlyAttacking:
                     player.weapon.attack(parent=player)
@@ -114,8 +120,6 @@ def mainloop():
             #cycle through all potential movement inputs
             if (keys[pygame.K_w] or keys[pygame.K_SPACE]) and player.isGrounded and not "u" in player.blockedMotion:
                 player.jump()
-            elif (keys[pygame.K_w] or keys[pygame.K_SPACE]) and ("l" in player.blockedMotion or "r" in player.blockedMotion) and not player.isGrounded:
-                player.wallJump()
 
             if keys[pygame.K_a] and not player.containsForce(axis="x", ref="UserInputLeft") and not "l" in player.blockedMotion and not player.crouched:
                 player.addForce(axis="x", direction="l", ref="UserInputLeft", magnitude=2500)
@@ -141,6 +145,7 @@ def mainloop():
                         player.rect.height //= 2 #make player shorter
                         player.rect.centery += player.rect.height
                         player.crouched = True #crouch
+                        player.removeForce(axis="x", ref="xFriction")
                 elif not player.isGrounded:
                     if player.crouched: #if we're crouched
                         player.crouched = False #uncrouch
@@ -160,18 +165,13 @@ def mainloop():
                 player.rect.center = (round(screenWidth/2), round(screenHeight/2))
                 player._velocity = pygame.Vector2(0,0)
 
-            if keys[pygame.K_e]:
-                 pass
-
-            #print(f"xForces{player._xForces}")
-            #print(f"yForces{player._yForces}")
-            #print(player._velocity.y)
-            #print(player._resultantForce.x)
-
             screen.fill((0, 0, 0)) #rgb value for black background
 
             #update all objects (this includes collision detection)
             player.update(collidableObjects=[walls, items])
+
+            print(player._xForces, player._yForces)
+
             walls.update()
             items.update()
             redraw()
@@ -278,7 +278,6 @@ def pauseMenu():
                 for button in renderedText:
                     if button.hoveredOver:
                         button.onClick()
-
         pygame.display.flip()
 
 def unpause():

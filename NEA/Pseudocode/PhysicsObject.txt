@@ -82,29 +82,21 @@ class PhysicsObject inherits pygame.sprite.Sprite
         if velocityChanged[0]: #if the velocity has changed, use s = (v^2 - u^2)/(2*a)
             xDisplacement = (finalVelocity.x**2 - initialVelocity.x**2)/(_acceleration.x*2)
         else:
-            xDisplacement = _acceleration.x*(1/FPS)
+            xDisplacement = _velocity.x*(1/FPS)
         endif
         if velocityChanged[1]:
             yDisplacement = (finalVelocity.y**2 - initialVelocity.y**2)/(_acceleration.y*2)
         else:
-            yDisplacement = _acceleration.y*(1/FPS)
+            yDisplacement = _velocity.y*(1/FPS)
         endif
 
         renderCollisions(collidableObjects=collidableObjects, velocity=[finalVelocity.x, finalVelocity.y], displacement=pygame.math.Vector2(xDisplacement, yDisplacement)) #update position
 
-        if "l" in blockedMotion:
+        if "l" in blockedMotion OR "r" in blockedMotion:
             xDisplacement = 0 #don't move the object
             finalVelocity.x = 0 #assume velocity is in the same direction and therefore set it to 0
         endif
-        if "r" in blockedMotion:
-            xDisplacement = 0
-            finalVelocity.x = 0
-        endif
-        if "d" in blockedMotion:
-            yDisplacement = 0
-            finalVelocity.y = 0
-        endif
-        if "u" in blockedMotion:
+        if "d" in blockedMotion OR "u" in blockedMotion:
             yDisplacement = 0
             finalVelocity.y = 0
         endif
@@ -232,3 +224,4 @@ class PhysicsObject inherits pygame.sprite.Sprite
         _acceleration = pygame.math.Vector2(0,0)
         blockedMotion = []
     endprocedure
+endclass

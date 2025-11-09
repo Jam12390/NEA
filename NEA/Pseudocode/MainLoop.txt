@@ -60,18 +60,21 @@ while running:
         player.jump()
     endif
     if keys[pygame.K_a] AND NOT player.containsForce(axis="x", ref="UserInputLeft") AND NOT player.blockedMotion.contains("l"):
-        player.addForce(axis="x", direction="l", ref="UserInputLeft", magnitude=25) #magnitude 25 = 25N
+        player.addForce(axis="x", direction="l", ref="UserInputLeft", magnitude=25)
     elseif NOT keys[pygame.K_a]:
         player.removeForce(axis="x", ref="UserInputLeft")
     endif
     if keys[pygame.K_d] AND NOT player.containsForce(axis="x", ref="UserInputRight") AND NOT player.containsForce(axis="x", ref="UserInputLeft") AND NOT player.blockedMotion.contains("r"):
-        player.addForce(axis="x", direction="r", ref="UserInputRight", magnitude=25) #magnitude 25 = 25N
+        player.addForce(axis="x", direction="r", ref="UserInputRight", magnitude=25)
     elseif NOT keys[pygame.K_d]:
         player.removeForce(axis="x", ref="UserInputRight")
     endif
     if keys[pygame.K_s] AND NOT player.containsForce(axis="y", ref="UserInputDown") AND NOT player.blockedMotion.contains("d"):
-        player.addForce(axis="y", direction="d", ref="UserInputDown", magnitude=25) #magnitude 25 = 25N
+        player.addForce(axis="y", direction="d", ref="UserInputDown", magnitude=25)
+    elseif keys[pygame.K_s] AND player.blockedMotion.contains("d"):
+        player.crouch()
     elseif NOT keys[pygame.K_s]:
+        player.uncrouch()
         player.removeForce(axis="y", ref="UserInputDown")
     endif
 

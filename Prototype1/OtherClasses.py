@@ -19,7 +19,7 @@ class Weapon(pygame.sprite.Sprite):
         pass
 
     def attack(self, parent):
-        if parent.simulated and self.__attackTimer <= 0: #the instance of object will be whichever entity has the weapon (e.g. Player.simulated)
+        if parent.simulated and self.__attackTimer <= 0: #the instance of parent will be whichever entity has the weapon (e.g. Player.simulated)
             self.currentlyAttacking = True
             self.__attackTimer = self.__anim["time"] #treating __anim as a map here since it's the easiest to read and understand
             self.playAnim()
@@ -37,8 +37,8 @@ class WallObj(pygame.sprite.Sprite):
             self,
             size: pygame.Vector2,
             position: pygame.Vector2,
-            spritePath: str,
-            frictionCoef: float,
+            frictionCoef: float = 1,
+            spritePath: str = "Sprites/DefaultSprite.png",
             pTag: str = "wall"
         ):
         super().__init__()

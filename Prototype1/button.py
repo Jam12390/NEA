@@ -6,7 +6,7 @@ class Button(pygame.sprite.Sprite):
             position: pygame.Vector2,
             text: str,
             func,
-            textColour: pygame.Color = pygame.Color(255, 255, 255),
+            textColour: pygame.Color = pygame.Color(0, 0, 0),
             buttonColour: pygame.Color = pygame.Color(175, 175, 175),
             hoverColour: pygame.Color = pygame.Color(60, 60, 60),
             fontName: str = "Calibri",
@@ -15,8 +15,6 @@ class Button(pygame.sprite.Sprite):
     ):
         self.size = size
         self.font = pygame.font.SysFont(fontName, size=textSize)
-
-        self.debugText = text
 
         self.text = self.font.render(text, False, textColour)
         self.textRect = pygame.Surface.get_rect(self.text)

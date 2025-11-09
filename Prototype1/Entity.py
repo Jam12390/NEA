@@ -63,10 +63,11 @@ class Entity(PhysicsObject):
                 freeInstance = True
             else:
                 currInstance += 1
-        self._effects[str(ID)+"-"+str(currInstance)] = allEffects[ID] #allEffects is an IMPORTed dictionary containing all effects in the game in the format: array[2]
-    
-    #default instance to -1 to remove all instances of effect and default ID to -1 to remove all effects
-    #forced is a local variable which tracks if an effect timed out or was forcefully removed by another function
+        self._effects[str(ID)+"-"+str(currInstance)] = allEffects[ID] #allEffects is an imported dictionary containing all effects in the game in the format: array[2]
+    '''
+    default instance to -1 to remove all instances of effect and default ID to -1 to remove all effects
+    forced is a local variable which tracks if an effect timed out or was forcefully removed by another function
+    '''
     def removeEffect(self, ID: int = -1, instance: str = "-1", forced: bool =False):
         if ID > -1:
             if int(instance) > -1 and str(ID)+"-"+instance in self._effects.keys():
@@ -95,9 +96,6 @@ class Entity(PhysicsObject):
             splitEffects = [item.split(" ") for item in splitValue]
             for effect in splitEffects:
                 self.modifyStat(effect[0], effect[1], effect[2])
-            
-        #self._velocityCap *= self._speed #increase speed cap by a factor of _speed
-        #self._velocityCap = max(vCapClamp*-1, min(vCapClamp, self._velocityCap.x))
 
         self._velocityCap.x = max(self._velocityCap.x, self._velocityCap.x*self._speed) #increase speed cap by a factor of _speed
         self._velocityCap.y = max(self._velocityCap.y, self._velocityCap.y*self._speed)
@@ -105,11 +103,12 @@ class Entity(PhysicsObject):
         self._velocityCap.y = max(hardVCap[0], min(self._velocityCap.y, hardVCap[1]))
     
     def modifyStat(self, stat: str, operator: str, magnitude: float):
+        #for all effects, effect is in the form "[attribute], [operator], [magnitude]" since it's easier to display on the UI
         match stat:
             case "jumpForce":
                 self._jumpForce = operators[operator](self._jumpForce, magnitude)
             case "maxHP":
-                self._maxHP = operators[operator](self._maxHP, magnitude) #effect is a string in the format "[affected_variable] [operator] [operand]"
+                self._maxHP = operators[operator](self._maxHP, magnitude)
             case "defense":
                 self._defense = operators[operator](self._defense, magnitude)
             case "speed":
@@ -125,18 +124,24 @@ class Entity(PhysicsObject):
         if len(axis) > 1:
             axis = axis[0:1]
         if axis == "x":
-            self._velocityCap.x += magnitude*self._speed #type: ignore
+            self._velocityCap.x += magnitude*self._speed
         else:
-            self._velocityCap.y += magnitude*self._speed #type: ignore
+            self._velocityCap.y += magnitude*self._speed
     
+    '''
+    self.FPS is assigned from a global variable denoting the number of game updates per second
+    1/self.FPS is the time since last frame
+    '''
     def update(self, collidableObjects):
         for key in self._effects.keys():
-            self._effects[key][1] -= 1/self.FPS #FPS is a global variable denoting the number of game updates per second - 1/FPS is the time since last frame
+            self._effects[key][1] -= 1/self.FPS
             if self._effects[key][1] <= 0:
                 self.removeEffect(ID=int(key.split("-")[0]), instance=key.split("-")[1], forced=False)
 
         if self.simulated:
-            #self._recalculateAttributes()
+            #this is in depencency order i.e. all physics functions require updated attributes, therefore self._recalculateAttributes() is run
+
+            self._recalculateAttributes()
 
             self._resultantForce = self.recalculateResultantForce(forceMult=self._speed, includedForces=[])
             self._acceleration = self.getAcceleration()

@@ -48,6 +48,13 @@ class Player inherits Entity
         endfor
     endprocedure
 
+    public procedure crouch():
+        pass #placeholder for development since crouch() uses a lot of pygame specific functions, which are specific to python.
+    endprocedure
+
+    public procedure uncrouch():
+        pass #same reasons as crouch()
+
     public procedure update(collidableObjects: List<Object>):
         for key in _effects.keys:
             _effects[key][1] -= 1/FPS #FPS is a global variable denoting the number of game updates per second - 1/FPS is the time since last frame

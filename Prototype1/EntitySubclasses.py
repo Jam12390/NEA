@@ -4,7 +4,7 @@ from OtherClasses import Weapon
 from dictionaries import allItems
 import math
 
-hardVCap = (-75, 75)
+hardVCap = (-125, 125)
 
 class Player(Entity):
     def __init__(
@@ -81,7 +81,7 @@ class Player(Entity):
             value = values[index]
             if value[0] == "item":
                 splitValue = allItems[key]["effects"].split(", ")
-                splitEffects = [item.split(" ") for item in splitValue] #double split to cover effects which affect multiple attributes
+                splitEffects = [item.split(" ") for item in splitValue] #double split to cover items which affect multiple attributes
                 for effect in splitEffects: #effect is now in format [variableAffected: string, operator: string, operand: float]
                     for i in range(value[2]):
                         self.modifyStat(effect[0], effect[1], float(effect[2]))
@@ -109,6 +109,16 @@ class Player(Entity):
         self._velocityCap.x = max(hardVCap[0], min(self._velocityCap.x, hardVCap[1]))
         self._velocityCap.y = max(hardVCap[0], min(self._velocityCap.y, hardVCap[1]))
     
+    def crouch(self):
+        self.rect.height //= 2 #make player shorter
+        self.rect.centery += self.rect.height
+        self.crouched = True #crouch
+    
+    def uncrouch(self):
+        self.crouched = False #uncrouch
+        self.rect.centery -= self.rect.height #move centre up
+        self.rect.height *= 2 #make player taller again
+    
     def wallJump(self):
         self.ignoreAccelFrames = 10 * max(1, self._speed/4)
 
@@ -130,28 +140,28 @@ class Player(Entity):
                 self.removeEffect(ID=int(key.split("-")[0]), instance=key.split("-")[1], forced=False)
 
         if self.simulated:
-            #self._recalculateAttributes()
+            self._recalculateAttributes()
+
+            if self.crouched:
+                self.removeForce(axis="x", ref="UserInputLeft")
+                self.removeForce(axis="x", ref="UserInputRight")
 
             self._resultantForce = self.recalculateResultantForce(forceMult=self._speed, includedForces=["UserInputLeft", "UserInputRight", "UserInputDown"])
             self._acceleration = self.getAcceleration()
             if self.ignoreAccelFrames > 0:
                 match self.facing:
                     case "l":
-                        self._acceleration.x = abs(self._acceleration.x) * -1
+                        self._acceleration.x = min(self._acceleration.x, 0)
                     case "r":
-                        self._acceleration.x = abs(self._acceleration.x)
+                        self._acceleration.x = max(0, self._acceleration.x)
                 self.ignoreAccelFrames -= 1
             self.getVelocity()
             displacement = self.displaceObject(collidableObjects=collidableObjects)
 
             if round(displacement.x) != 0: #if we are actually registering movement
                 if self._velocity.x < 0: #then allow self.facing to change
-                    #if self.facing == "r":
-                    #    self.weapon.image = pygame.transform.flip(self.image, True, False)
                     self.facing = "l"
                 else:
-                    #if self.facing == "l":
-                    #    self.weapon.image = pygame.transform.flip(self.image, True, False)
                     self.facing = "r"
             
             match self.facing:

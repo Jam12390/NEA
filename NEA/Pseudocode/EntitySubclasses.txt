@@ -25,7 +25,7 @@ class Player inherits Entity
         return newData
     endfunction
 
-    private procedure __recalculateAttributes()
+    protected procedure _recalculateAttributes()
         _maxHP = _originalAttributes["maxHP"]
         _defense = _originalAttributes["defense"]
         _speed = _originalAttributes["speed"]
@@ -54,6 +54,7 @@ class Player inherits Entity
 
     public procedure uncrouch():
         pass #same reasons as crouch()
+    endprocedure
 
     public procedure update(collidableObjects: List<Object>):
         for key in _effects.keys:
@@ -64,7 +65,7 @@ class Player inherits Entity
         endfor
 
         if simulated: #player should always be simulated, however adding this option should simplify adding effects such as frozen
-            __recalculateAttributes()
+            _recalculateAttributes()
 
             recalculateResultantForce()
             _acceleration = getAcceleration(accelerationMultiplier=_speed)

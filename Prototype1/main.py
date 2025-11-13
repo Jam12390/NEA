@@ -1,9 +1,7 @@
 import pygame
 import sys
-from PhysicsObject import PhysicsObject
-from Entity import Entity
 from EntitySubclasses import Player
-from OtherClasses import Weapon, WallObj, Item, ItemUIWindow
+from OtherClasses import WallObj, Item, ItemUIWindow
 from button import Button
 from dictionaries import *
 
@@ -33,7 +31,7 @@ player = Player(
     pMass=5,
     startingPosition=pygame.math.Vector2(screenWidth/2, screenHeight/2),
     startingVelocity=pygame.math.Vector2(0, 0),
-    pVelocityCap=pygame.math.Vector2(60, 60),
+    pVelocityCap=pygame.math.Vector2(50, 50),
     startingWeaponID=0
 )
 
@@ -44,7 +42,7 @@ walls.add(
         position=pygame.Vector2(screenWidth/2, (screenHeight/2)+200), #position the floor beneath the player
         spritePath="Sprites/DefaultSprite.png", #placeholder for actual image path in development
         pTag="floor",
-        frictionCoef=0.5
+        frictionCoef=1
     )
 )
 
@@ -141,22 +139,15 @@ def mainloop():
                         player.fastFalling = False #stop fast falling
                         player.modifySpeedCap(axis="y", magnitude=-15) #change speed cap back
                     player.removeForce(axis="y", ref="UserInputDown")
-                    if not player.crouched:
-                        player.rect.height //= 2 #make player shorter
-                        player.rect.centery += player.rect.height
-                        player.crouched = True #crouch
-                        player.removeForce(axis="x", ref="xFriction")
+                    if not player.crouched: #if we're not crouched
+                        player.crouch() #crouch
                 elif not player.isGrounded:
                     if player.crouched: #if we're crouched
-                        player.crouched = False #uncrouch
-                        player.rect.centery -= player.rect.height #move centre to correct position
-                        player.rect.height *= 2 #make player taller
+                        player.uncrouch() #uncrouch
             else: #not holding S
                 player.removeForce(axis="y", ref="UserInputDown") #remove downwards force
                 if player.crouched:
-                    player.crouched = False #uncrouch
-                    player.rect.centery -= player.rect.height #move centre up
-                    player.rect.height *= 2 #make player taller again
+                    player.uncrouch()
                 if player.fastFalling:
                     player.modifySpeedCap(axis="y", magnitude=-15) #stop fast falling
                     player.fastFalling = False
@@ -170,7 +161,8 @@ def mainloop():
             #update all objects (this includes collision detection)
             player.update(collidableObjects=[walls, items])
 
-            print(player._xForces, player._yForces)
+            #print(player._xForces, player._yForces)
+            print(player._velocity)
 
             walls.update()
             items.update()

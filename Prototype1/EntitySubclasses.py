@@ -2,7 +2,6 @@ import pygame
 from Entity import Entity
 from OtherClasses import Weapon
 from dictionaries import allItems
-import math
 
 hardVCap = (-125, 125)
 
@@ -95,16 +94,16 @@ class Player(Entity):
                 self.modifyStat(effect[0], effect[1], effect[2])
         
         #increase speed cap by a factor of _speed
-        if self._baseVCap.x * self._speed > self._baseVCap.x:
-            self._velocityCap.x = self._baseVCap.x * self._speed
+        if self._baseVCap[0] * self._speed > self._baseVCap[0]:
+            self._velocityCap.x = self._baseVCap[0] * self._speed
         else:
-            self._velocityCap.x = self._baseVCap.x
-        if self._baseVCap.y * self._speed > self._baseVCap.y:
-            self._velocityCap.y = self._baseVCap.y * self._speed
+            self._velocityCap.x = self._baseVCap[0]
+        if self._baseVCap[1] * self._speed > self._baseVCap[1]:
+            self._velocityCap.y = self._baseVCap[1] * self._speed
         else:
-            self._velocityCap.y = self._baseVCap.y
-        
-        self._baseVCap = pygame.Vector2(35, 35)
+            self._velocityCap.y = self._baseVCap[1]
+
+        self._baseVCap = self._originalAttributes["baseVCap"]
 
         self._velocityCap.x = max(hardVCap[0], min(self._velocityCap.x, hardVCap[1]))
         self._velocityCap.y = max(hardVCap[0], min(self._velocityCap.y, hardVCap[1]))
@@ -140,7 +139,7 @@ class Player(Entity):
                 self.removeEffect(ID=int(key.split("-")[0]), instance=key.split("-")[1], forced=False)
 
         if self.simulated:
-            self._recalculateAttributes()
+            #self._recalculateAttributes()
 
             if self.crouched:
                 self.removeForce(axis="x", ref="UserInputLeft")

@@ -255,13 +255,13 @@ class PhysicsObject(pygame.sprite.Sprite):
         xFriction = 0
         yFriction = 0
 
-        airResistanceCoef = 0.05
+        airResistanceCoef = 0.01
 
         strippedResForce = self.recalculateResultantForce()
 
-        if not(-1 < self._velocity.x and self._velocity.x < 1):
+        if not(-2.75 < self._velocity.x and self._velocity.x < 2.75):
             if not ("l" in coef.keys() or "r" in coef.keys()):
-                xAirResistance = airResistanceCoef * strippedResForce.x
+                xAirResistance = abs(airResistanceCoef * self._velocity.x * self.FPS)
             
             xFriction = coef["d"]*strippedResForce.y if "d" in coef.keys() else coef["u"]*strippedResForce.y if "u" in coef.keys() else 0
             if strippedResForce.x != 0:
@@ -270,14 +270,14 @@ class PhysicsObject(pygame.sprite.Sprite):
         else:
             xFriction = 0
 
-        if not(-1 < self._velocity.y and self._velocity.y < 1):
-            if not ("d" in coef.keys() or "y" in coef.keys()):
-                yAirResistance = airResistanceCoef * strippedResForce.y
+        if not(-2.75 < self._velocity.y and self._velocity.y < 2.75):
+            if not ("d" in coef.keys() or "u" in coef.keys()):
+                yAirResistance = abs(airResistanceCoef * self._velocity.y * self.FPS)
 
             yFriction = coef["l"]*strippedResForce.y if "l" in coef.keys() else coef["r"]*strippedResForce.y if "r" in coef.keys() else 0
             if strippedResForce.y != 0:
                 yFriction = min(abs(strippedResForce.y), abs(yFriction))
-            yDirection = "d" if self._velocity.y > 0 else "u"
+            yDirection = "u" if self._velocity.y > 0 else "d"
         else:
             yFriction = 0
 
@@ -285,10 +285,10 @@ class PhysicsObject(pygame.sprite.Sprite):
             self.addForce(axis="x", direction=xDirection, ref="xFriction", magnitude=xFriction) #direction will always be bound if friction != 0, so ignore #type: ignore
         if yFriction != 0:
             self.addForce(axis="y", direction=yDirection, ref="yFriction", magnitude=yFriction) #type: ignore
-        if xAirResistance != 0 and xFriction != strippedResForce.x and xFriction != 0:
+        if xAirResistance != 0 and ((xFriction != strippedResForce.x and xFriction != 0) or not self.isGrounded):
             self.addForce(axis="x", direction="l" if self._velocity.x > 0 else "r", ref="xAirResistance", magnitude=xAirResistance)
-        if yAirResistance != 0 and yFriction != strippedResForce.y and yFriction != 0:
-            self.addForce(axis="y", direction="d" if self._velocity.y < 0 else "u", ref="yAirResistance", magnitude=yAirResistance)
+        if yAirResistance != 0 and yFriction != strippedResForce.y:
+            self.addForce(axis="y", direction="u" if self._velocity.y < 0 else "d", ref="yAirResistance", magnitude=yAirResistance)
 
 
     def killSelf(self):

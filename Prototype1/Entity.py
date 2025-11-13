@@ -45,7 +45,8 @@ class Entity(PhysicsObject):
             "maxHP": maxHP,
             "defense": defense,
             "speed": speed,
-            "attackCooldown": pAttackCooldown
+            "attackCooldown": pAttackCooldown,
+            "baseVCap": (pVelocityCap.x, pVelocityCap.y)
         }
         self._maxHP = maxHP
         self.remainingHP = maxHP

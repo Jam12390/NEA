@@ -1,0 +1,42 @@
+def getAdjacentNodes(nodeMap, nodeIndex, limits):
+    adj = [
+        (nodeIndex[0] - 1, nodeIndex[1]),
+        (nodeIndex[0] + 1, nodeIndex[1]),
+        (nodeIndex[0], nodeIndex[1] - 1),
+        (nodeIndex[0])
+    ]
+
+def path(
+    nodeMap,
+    limits,
+    startNode, //in index form i.e. [y, x] where the origin is the top left. (cannot be a tuple due to tuples being static)
+    endNode,
+    excludedNodes=[],
+    preVerified=false,
+    savedState=null
+    ):
+
+    currentTable = {
+        startNode: {
+            "shortestDistance": 0,
+            "heuristic": math.sqrt((endNode[0]-startNode[0])**2 + (endNode[1]-startNode[1]**2)),
+            "nextNodes": [],
+            "previousNode": NA,
+            "visited": false
+        },
+        endNode: {
+            "shortestDistance": math.inf,
+            "heuristic": 0,
+            "nextNodes": NA,
+            "previousNode": null,
+            "visited": false
+        }
+    }
+    
+    pathFound = false
+
+    while NOT pathFound:
+        nextToVisit = [null, math.inf] //[node, distance]
+        for node in currentTable.keys:
+            if node["shortestDistance"] + node["heuristic"] < nextToVisit AND NOT (node["visited"] OR node in excludedNodes):
+                nextToVisit = [node, node["shortestDistance"] + node["heuristic"]]

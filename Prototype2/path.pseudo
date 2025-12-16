@@ -1,109 +1,157 @@
-//note to self, make sure to include a direction in the parameters for findIntermediatePath
-//to 1. improve efficiency and 2. actually know in which direction to look for an intermediate path in
-def findIntermediatePath(
+import operator
+
+
+
+
+/////////////////////////////////////
+/////////////////////////////////////
+
+def findIntermediatePathNode(
         screen,
         walls,
-        initialNodePos,
-        nodeDistance,
-        xMapOffset, 
-        yMapOffset,
+        nodeMap,
         startNode,
+        originNodeOffset,
+        nodeSeparation,
+        mapOffset,
         jumpHeight,
         jumpRadius,
-        xGraphLimit
+        xGraphLimit,
+        direction
     ):
 
-    circleSightRadius = 70//deg (70deg left and right)
+    circleSightRadius = 70
 
-    lineStartx = initialNodePos + (startNode[1] * nodeDistance) - xMapOffset
-    lineStarty = initialNodePos + (startNode[0] * nodeDistance) - yMapOffset
-    lineStart = (lineStartx, lineStarty)
-    lineEnd = (lineStartx, lineStarty-jumpHeight) //y-coordinates are reversed in pygame
-    
+    lineStart = (
+        originNodeOffset + (startNode[0] * nodeSeparation) - mapOffset[0],
+        originNodeOffset + (startNode[1] * nodeSeparation) - mapOffset[1]
+    )
+    lineEnd = (lineStart[0], lineStart[1] - jumpHeight)
+
     jumpLine = pygame.draw.line(
         surface=screen,
-        color=(255,255,255),
+        color=(0,255,0),
         start_pos=lineStart,
         end_pos=lineEnd
     )
 
     collided = false
-    lineNodex = startNode[1]
-    lineNodey = startNode[0]
+    xLine = startNode[0]
+    yLine = startNode[1]
 
-    while (NOT collided) AND xGraphLimit[0] <= lineNodex AND lineNodex <= xGraphLimit[1]: //xGraphLimit[leftLim, rightLim]
-        jumpLine.move(-nodeDistance, 0)
-        lineNodex -= 1
+    if direction == "l":
+        op = operator.sub
+        inverse = operator.add
+    else:
+        op = operator.add
+        inverse = operator.sub
+    
+    while (NOT collided) AND xGraphLimit[0] <= xLine AND xLine <= xGraphLimit[1]: //xGraphLimit[leftLim, rightLim]
+        jumpLine.move(op(0, nodeDistance), 0)
+        xLine = op(xLine, 1)
         for wall in walls:
             if pygame.Rect.colliderect(wall, jumpLine):
                 collided = true
-                jumpLine.move(nodeDistance, 0)
-                lineNodex += 1
+                jumpLine.move(inverse(0, nodeDistance), 0)
+                xLine = inverse(xLine, 1)
                 break
     
-    platformFound = [false, null, null] //[found, direction, node]
+    platformFound = [false, null] //[found, node]
+    excludedNodes = []
 
     if collided:
-        circleCenterx = lineStartx + ((startNode[1]-lineNodex) * nodeDistance)
-        jumpCircle = pygame.draw.circle(surface=screen, color=(0,0,255), center=(circleCenterx, lineStarty), radius=jumpRadius)
-        leftCollisionState = [false, false] //[previous, current]
-        rightCollisionState = [false, false]
+        xCircleCenter = lineStart[0] - ((startNode[0] - xLine) * nodeDistance)
+        jumpCircle = pygame.draw.circle(surface=screen, color=(0,0,255), center=(xCircleCenter, lineStart[1]), radius=jumpRadius)
 
-        previousChordState = null
+        collisionState = [false, false]
+        collidedWith = null
+        previousState = null
 
         while circleSightRadius > 0 AND NOT platformFound[0]:
-            chordLength = round(math.sqrt((2*jumpRadius**2)*(1-math.cosine(2*circleSightRadius))))
-            chordHeight = round(jumpRadius*math.cosine(circleSightRadius))
-            leftChordEnd = (circleCenterx - chordLength DIV 2, lineStarty + chordHeight) //assume DIV = //
-            rightChordEnd = (circleCenterx + chordLength DIV 2, lineStarty + chordHeight)
+            chordLength = round(math.sqrt((2 * jumpRadius**2) * (1 - math.cosine(2 * circleSightRadius))))
+            chordLength = chordLength DIV 2
+            chordHeight = round(jumpRadius * math.cosine(circleSightRadius))
 
-            leftCollisionState[0] = leftCollisionState[1] //move "current" state to previous state
-            rightCollisionState[0] = rightCollisionState[1]
-
-            leftCollidedWith = null
-            rightCollidedWith = null
+            chordEnd = (op(circleCenterx, chordLength), lineStart[1] - chordHeight)
 
             for wall in walls:
-                if pygame.Rect.collidepoint(wall, leftChordEnd):
-                    leftCollisionState[1] = true
-                    leftCollidedWith = wall
+                if pygame.Rect.collidepoint(wall, chordEnd):
+                    collisionState[1] = true
+                    collidedWith = wall
                     break
                 else:
-                    leftCollisionState[1] = false
-                    leftCollidedWith = null
+                    collisionState[1] = false
+                    collidedWith = null
             
-            for wall in walls:
-                if pygame.Rect.collidepoint(wall, rightChordEnd):
-                    rightCollisionState[1] = true
-                    rightCollidedWith = wall
-                    break
-                else:
-                    rightCollisionState[1] = false
-                    rightCollidedWith = null
-            
-            if leftCollisionState[0] AND NOT leftCollisionState[1]: //true -> false collision
-                found = testCollisionChange(previousChordState, leftChordEnd, chordHeight, "l")
-                if found:
-                    platformFound = [true, "l"]
+        if collisionState[0] AND NOT collisionState[1]:
+            found = testCollisionChange(previousState, chordEnd, chordHeight, direction)
+            if found:
+                topY = collidedWith.top[1]
+                index = yVertex DIV nodeSeparation
+                nodeIndex = (index, op(xLine, 1))
+                platformFound = [true, nodeIndex]
+        
+        previousChordState = {
+            "chord": chordEnd,
+            "collidedWith": collidedWith,
+            "chordHeight": chordHeight
+        }
+    
+    if NOT (collided OR platformFound[0]):
+        xExclusionOrigin = startNode[0] + 1
+        yExclusionOrigin = startNode[1] - (jumpHeight DIV nodeSeparation)
+        currentNode = [xExclusionOrigin, yExclusionOrigin]
+        while nodeMap[currentNode[1]][currentNode[0]] != "#": //# is the notation for a wall
+            excludedNodes.append(currentNode)
+            currentNode[1] -= 1
+        currentNode = [op(xExclusionOrigin, 1), yExclusionOrigin]
+        while nodeMap[currentNode[1]][currentNode[0]] != "#" AND xGraphLimit[0] <= currentNode[0] AND currentNode[0] <= xGraphLimit[1]:
+            excludedNodes.append(currentNode)
+            currentNode[0] = op(currentNode[0], 1)
+    
+    return [platformFound, excludedNodes]
 
-            previousChordState = {
-                "leftChord": leftChordEnd,
-                "leftCollidedWith": leftCollidedWith,
-                "rightChord": rightChordEnd,
-                "rightCollidedWith": rightCollidedWith,
-                "chordHeight": chordHeight
-            }
+def testCollisionChange(previousState, pointToTest, currentChordHeight):
+    loweredChord = (pointToTest[0], pointToTest[1] + currentChordHeight - previousState["chordHeight"]) //reminder: + is down in terms of y-coord
+
+    if pygame.Rect.collidepoint(previousState["collidedWith"], loweredChord):
+        return true
+    else:
+        return false
 
 
-def testCollisionChange(previousState, pointToTest, currentChordHeight, direction):
-            if direction == "l":
-                queries = ["leftChord", "leftCollidedWith"]
-            else:
-                queries = ["rightChord", "rightCollidedWith"]
-            
-            loweredChord = (previousState[queries[0]][0], previousState[queries[0]][1] - currentChordHeight + previousState["chordHeight"]) //move the point down to the previous chord's height
-            if pygame.Rect.collidepoint(previousState[queries[1]], loweredChord): //and test its collision against the wall the previous wall collided with
-                //TODO: add a function for getting the edge node of the found platform
-                return true
-            else:
-                return false
+///////////////////////////////////////
+///////////////////////////////////////
+
+
+def gapCrossable(
+        screen,
+        walls,
+        startNode,
+        endNode,
+        originNodeOffset,
+        nodeSeparation,
+        mapOffset,
+        jumpRadius
+    ):
+    startPoint = (
+        originNodeOffset + startNode[0] * nodeSeparation + mapOffset[0],
+        originNodeOffset + startNode[1] * nodeSeparation + mapOffset[1]
+    )
+    endPoint = (
+        originNodeOffset + endNode[0] * nodeSeparation + mapOffset[0],
+        originNodeOffset + endNode[1] * nodeSeparation + mapOffset[1]
+    )
+
+    sightLine = pygame.draw.line(screen, (0, 0, 255), startPoint, endPoint)
+
+    for wall in walls:
+        if len(wall.clipline(sightLine)) != 0:
+            return false
+    return true
+
+def shortenPath(path, cropStart, cropEnd):
+    currentIndex = path.index(cropStart) + 1
+    while path[currentIndex] != cropEnd:
+        path.pop()
+    return path

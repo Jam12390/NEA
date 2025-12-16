@@ -3,9 +3,28 @@ def getAdjacentNodes(nodeMap, nodeIndex, limits):
         (nodeIndex[0] - 1, nodeIndex[1]),
         (nodeIndex[0] + 1, nodeIndex[1]),
         (nodeIndex[0], nodeIndex[1] - 1),
-        (nodeIndex[0])
+        (nodeIndex[0], nodeIndex[1] + 1)
     ]
+    indexesToRemove = []
 
+    for index in range(0, 4):
+        if limits["x"][0] <= adj[index][0] AND adj[index][0] <= limits["x"][1]:
+            inXRange = true
+        else:
+            inXRange = false
+        if limits["y"][0] <= adj[index][1] AND adj[index][1] <= limits["y"][1]:
+            inYRange = true
+        else:
+            inYRange = false
+
+        if nodeMap[adj[index][1]][adj[index][0]] == "#" OR NOT inXRange OR NOT inYRange:
+            indexesToRemove.append(index)
+    
+    for index in indexesToRemove:
+        adj.remove(index)
+    
+    return adj
+    
 def path(
     nodeMap,
     limits,
@@ -40,3 +59,5 @@ def path(
         for node in currentTable.keys:
             if node["shortestDistance"] + node["heuristic"] < nextToVisit AND NOT (node["visited"] OR node in excludedNodes):
                 nextToVisit = [node, node["shortestDistance"] + node["heuristic"]]
+        
+        adjacentNodes = getAdjacentNodes(nodeMap, nextToVisit[0], limits) //TODO: continue here

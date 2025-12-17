@@ -1,3 +1,5 @@
+//EXPANDING PATH TO CONNECTED NODES
+
 def getAdjacentNodes(nodeMap, nodeIndex, limits):
     adj = [
         (nodeIndex[0] - 1, nodeIndex[1]),
@@ -36,6 +38,9 @@ def shortenPath(
         currentTable = shortenPath(currentTable, node, nodeSeparation)
     return currentTable
 
+////////////////////////
+//GENERAL PATHING SUBROUTINE
+////////////////////////
 
 def path(
     nodeMap,
@@ -102,6 +107,7 @@ def path(
             finalPath = pathBack(currentTable, endNode)
 
 ///////////////////////////////
+//GETTING FINAL PATH
 ///////////////////////////////
 
 class Stack():

@@ -1,7 +1,29 @@
 import operator
 
 
-
+def flatten(
+        nodeMap,
+        path
+    ):
+    flattenedPath = []
+    for node in path:
+        dynaNode = [node[0], node[1]] //dynaNode is the dynamic version of the static node tuple
+        while nodeMap[dynaNode[1] + 1] == " ": //while there are available empty nodes below the current node
+            dynaNode[1] += 1: //move the current node down
+        if NOT dynaNode in flattenedPath:
+            flattenedPath.append(dynaNode)
+    
+    previousNode = 0
+    currentIndex = 1
+    finalPath = [flattenedPath[0]]
+    while currentIndex != flattenedPath.length:
+        if flattenedPath[previousNode][0] != flattenedPath[currentNode][0] AND flattenedPath[previousNode][1] != flattenedPath[currentNode][1]:
+            finalPath.append([flattenedPath[previousNode][0] + 1, flattenedPath[previousNode][0]]) //adds a corner node to the final path
+        finalPath.append(flattenedPath[currentNode])
+        previousNode += 1
+        currentNode += 1
+    endwhile
+    return finalPath
 
 /////////////////////////////////////
 /////////////////////////////////////
@@ -123,10 +145,10 @@ def testCollisionChange(previousState, pointToTest, currentChordHeight):
 ///////////////////////////////////////
 ///////////////////////////////////////
 
-
-def gapCrossable(
+def crossGap(
         screen,
         walls,
+        path,
         startNode,
         endNode,
         originNodeOffset,
@@ -146,12 +168,33 @@ def gapCrossable(
     sightLine = pygame.draw.line(screen, (0, 0, 255), startPoint, endPoint)
 
     for wall in walls:
-        if len(wall.clipline(sightLine)) != 0:
-            return false
-    return true
+        if wall.clipline(sightLine).length != 0:
+            return false, path
+    
+    if math.sqrt((endPoint[0] - startPoint[0])**2 - (endPoint[1] - startPoint[1])**2) <= jumpRadius:
+        path = cropPath(path, startNode, endNode)
+        return true, path
 
-def shortenPath(path, cropStart, cropEnd):
+def cropPath(path, cropStart, cropEnd):
     currentIndex = path.index(cropStart) + 1
     while path[currentIndex] != cropEnd:
-        path.pop()
+        path.remove(currentIndex)
+    path.insert(currentIndex, "JUMP")
     return path
+
+//////////////////////////////////
+//////////////////////////////////
+
+def cleansePathingState(dirtyTable, excludedNodes):
+    toClean = new Stack("unlimited")
+    for node in excludedNodes:
+        if node in dirtyTable:
+            toClean.push(node)
+    
+    while NOT toClean.isEmpty():
+        currentNode = toClean.pop()
+        for node in dirtyTable[node]["nextNodes"]:
+            toClean.push(node)
+        del dirtyTable[currentNode]
+    
+    return dirtyTable //now clean

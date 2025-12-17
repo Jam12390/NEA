@@ -1,0 +1,13 @@
+def verify(
+    screen,
+    path,
+    walls,
+    nodeMap,
+    originNodeOffset,
+    nodeSeparation,
+    mapOffset,
+    jumpHeight,
+    jumpRadius,
+    xGraphLimit
+    ):
+    

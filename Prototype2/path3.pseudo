@@ -1,4 +1,4 @@
-def verify( //returns a bool for if the path was valid, a a nullable list of excluded nodes
+def verify( //returns a bool for if the path was valid, a nullable list of excluded nodes
     screen,
     path, //takes flattened path, NOT absolute path
     walls,

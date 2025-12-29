@@ -22,7 +22,7 @@ class PhysicsObject(pygame.sprite.Sprite):
         self.tag = pTag
         self._mass = pMass
         self._xForces = {}
-        self._yForces = {"gravity": pMass*9.81*15}
+        self._yForces = {"gravity": pMass*9.81*15} #gravity ignores mass
         self._resultantForce = pygame.Vector2(0,0)
         self._velocity = startingVelocity
         self._velocityCap = pVelocityCap

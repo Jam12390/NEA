@@ -6,6 +6,9 @@ def s(u, g, t) -> float:
 def v(u, g, t) -> float:
     return u + g*t
 
+def solveV(targetV, u, g):
+    return (targetV-u)/g
+
 def solveS(u, g, point, direction) -> float:
     #equ = 0 = ut + 0.5at^2 - point
     solutions = [
@@ -24,11 +27,13 @@ def nearestNode(absolute, nodeSep):
     #if s(u=u, g=g, t=solveS(u=u, g=g, point=absolute[0], direction=direction)) > yCo:
     #    yCo += 1
 
-    return (int(yCo), int(absolute[1]//nodeSep))
+    return (int(yCo), int(absolute[1]//nodeSep)) #new equation! multiply g by 2 in all equations
 
 def getPointsAcrossCurve(u, g, maxXSpeed, nodeSep, direction, dirEffect):
     numOfPoints = round(10 * (maxXSpeed/20))
     points = []
+
+    g = -abs(g)
 
     solutions = [solveS(u, g/2, point=0, direction="l"), solveS(u, g/2, point=0, direction="r")]
     if direction == "l":
@@ -68,9 +73,9 @@ def jumpOffEdge(u, g, maxXSpeed, origin, nodeMap, nodeSep, direction):
     for pointIndex in range(0, len(points)):
         points[pointIndex] = (origin[0] - points[pointIndex][0], points[pointIndex][1] + origin[1])
     for point in points:
-        if not hitRoof and not hitWall:
+        if not hitRoof and not hitWall and point[0] in range(0, len(nodeMap)) and point[1] in range(0, len(nodeMap[0])):
             currentNodeData = nodeMap[point[0]][point[1]]
-            if currentNodeData != " " and nodeMap[point[0] + 1][point[1]] == " " and v(u=u, g=g, t=solveS(u=u, g=g, point=point[0], direction=direction)) > 0:
+            if currentNodeData != " " and nodeMap[point[0] + 1][point[1]] == " " and v(u=u, g=g, t=solveS(u=u, g=g, point=point[0], direction=direction)) >= 0:
                 hitRoof = True
                 roofNode = (point[0] + 1, point[1])
                 topNodes.append((point[0] + 1, point[1]))
@@ -125,27 +130,97 @@ def findLowerNodes(topNodes, nodeMap) -> tuple[list[tuple], list[tuple]]:
                     currentNode[0] += 1
                     currentNodeData = nodeMap[currentNode[0]][currentNode[1]]
                 currentNode[0] -= 1
-                if not tuple(currentNode) == node:
-                    floorNodes.append((currentNode[0], currentNode[1]))
+            #if not tuple(currentNode) == node:
+            floorNodes.append((currentNode[0], currentNode[1], "ground"))
+        for node in topNodes:
+            if not (node[0], node[1], None) in foundNodes and not (node[0], node[1], "ground") in foundNodes:
+                foundNodes.append((node[0], node[1], None))
         topNodes = list(tuple(buffer))
-    
+
     return (foundNodes, floorNodes)
 
-def traverseFloor(nodeMap, jumpForce, nodeSep, origin):
+def traverseFloor(nodeMap, jumpForceInNodes, nodeSep, origin):
     step = 1
     current = list(origin)
     foundNodes = []
+    newFloors = []
     corners = []
     for x in range(2):
         stop = False
         while current[0] in range(0, len(nodeMap)) and current[1] in range(0, len(nodeMap[0])) and not stop:
-            if nodeMap[current[0] + 1][current[1]] == " ":
+            previousCollisionState = [False, False]
+            if nodeMap[current[0] + 1][max(0, min(len(nodeMap[current[0]]) - 1, current[1] + step))] == " " or not current[1] + step in range(0, len(nodeMap[current[0]])):
                 stop = True
-                corners.append(tuple(current))
-            else:
-                foundNodes.append((current[0], current[1], "ground"))
-                stepUp = 1
-                while
+                corners.append((current[0], current[1], "l" if step < 0 else "r"))
+            foundNodes.append((current[0], current[1], "ground"))
+            stepUp = 1
+            while nodeMap[max(0, current[0] - stepUp)][current[1]] == " " and current[0] - stepUp in range(0, len(nodeMap)) and stepUp <= jumpForceInNodes:
+                if not nodeMap[max(0, current[0] - stepUp)][current[1]] == " " in foundNodes:
+                    foundNodes.append((current[0] - stepUp, current[1], None))
+                    currentCollisionState = [
+                        current[1] - 1 >= 0 and nodeMap[current[0] - stepUp][max(0, current[1] - 1)] != " ",
+                        current[1] + 1 < len(nodeMap[current[0] - stepUp]) and nodeMap[current[0] - stepUp][min(len(nodeMap[current[0] - stepUp]) - 1, current[1] + 1)] != " "
+                    ]
+                    if previousCollisionState[0] and not currentCollisionState[0]:
+                        newFloors.append((current[0] - stepUp, current[1] - 1, "ground", "r"))
+                    if previousCollisionState[1] and not currentCollisionState[1]:
+                        newFloors.append((current[0] - stepUp, current[1] + 1, "ground", "l"))
+                    
+                    previousCollisionState = list(tuple(currentCollisionState))
+                    currentCollisionState = [False, False]
+                stepUp += 1
+            current = list(current)
+            current[1] += step
+        step *= -1
+        current = origin
+    
+    return (foundNodes, corners, newFloors)
+
+def precompileGraph(nodeMap, nodeSep, gravityAccel, enemyData, origin):
+    floors = [origin]
+    traversedFloors = []
+    corners = []
+
+    gravityAccel = -abs(gravityAccel)
+
+    maxS = s(u=enemyData["jumpForce"], g=gravityAccel, t=solveV(targetV=0, u=enemyData["jumpForce"], g=gravityAccel))
+    jumpHeightInNodes = maxS // nodeSep
+
+    allNodes = []
+
+    while len(floors) != 0:
+        buffer = []
+
+        for floor in floors:
+            if not floor in traversedFloors:
+                traversedFloors.append(floor)
+                response = traverseFloor(nodeMap=nodeMap, jumpForceInNodes=jumpHeightInNodes, nodeSep=nodeSep, origin=floor)
+                for node in response[0]:
+                    if not node in allNodes:
+                        allNodes.append(node)
+                    if node[2] == "ground" and not node in traversedFloors:
+                        traversedFloors.append(node)
+                for corner in response[1]:
+                    if not corner in corners:
+                        corners.append(corner)
+                for newFloor in response[2]:
+                    if not newFloor in traversedFloors:
+                        buffer.append((newFloor[0], newFloor[1], newFloor[2]))
+                        corners.append((newFloor[0], newFloor[1], newFloor[3]))
+
+        for corner in corners:
+            topNodes = jumpOffEdge(u=enemyData["jumpForce"], g=gravityAccel, maxXSpeed=enemyData["maxSpeed"][1], origin=corner, nodeMap=nodeMap, nodeSep=nodeSep, direction=corner[2])
+            response = findLowerNodes(topNodes=topNodes, nodeMap=nodeMap)
+            for node in response[0]:
+                if not node in allNodes:
+                    allNodes.append(node)
+            for newFloor in response[1]:
+                if not (newFloor in traversedFloors or newFloor in floors):
+                    buffer.append(newFloor)
+        corners = []
+        floors = list(tuple(buffer))
+    
+    return allNodes
 
 if __name__ == "__main__":
     testGraph = []
@@ -166,18 +241,19 @@ if __name__ == "__main__":
     for x in range(1):
         testGraph.append(["#" for x in range(20)]) #stupid python
     
-    origin = (8,10)
-    jumpForce = 125
+    origin = (5,0)
 
     gravityAccel = 9.81 * 15
-    maxSpeed = (0, 90)
-    nodeSep = 13
+    nodeSep = 10
 
-    topNodes = jumpOffEdge(u=jumpForce, g=gravityAccel, maxXSpeed=maxSpeed[1], origin=origin, nodeMap=testGraph, nodeSep=nodeSep, direction="l")
-    response = findLowerNodes(topNodes=topNodes, nodeMap=testGraph)
-    for x in topNodes:
-        testGraph[x[0]][x[1]] = "x"
-    for x in response[0]:
+    enemyData = {
+        "jumpForce": 100,
+        "maxSpeed": (0, 25)
+    }
+
+    allNodes = precompileGraph(nodeMap=testGraph, nodeSep=nodeSep, gravityAccel=gravityAccel, enemyData=enemyData, origin=origin)
+
+    for x in allNodes:
         testGraph[x[0]][x[1]] = "x"
     for line in testGraph:
         print(line)

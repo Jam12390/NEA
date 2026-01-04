@@ -270,9 +270,7 @@ if __name__ == "__main__":
     #for line in testGraph:
     #    print(line)
     
-    origin = (4, 19)
-    origin = getLowerNodes(start=origin, nodeMap=testGraph, exclusionList=[])
-    origin = origin[len(origin)-1]
+    origin = (8, 19)
     #Test data:
     jumpForce = 125
 

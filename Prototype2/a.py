@@ -1,26 +1,4 @@
-import math
-
-def s(u, g, t) -> float:
-    return u*t + 0.5*g*t**2
-
-def v(u, g, t) -> float:
-    return u + g*t
-
-def solveV(targetV, u, g):
-    return (targetV-u)/g
-
-def solveS(u, g, point, direction) -> float:
-    #equ = 0 = ut + 0.5at^2 - point
-    solutions = [
-        (-u + math.sqrt(u**2 - 2*g*-point))/(2*g),
-        (-u - math.sqrt(u**2 - 2*g*-point))/(2*g)
-    ] #solutions to point
-
-    if direction == "l":
-        t = min(solutions)
-    else:
-        t = max(solutions)
-    return t
+from suvat import *
 
 def nearestNode(absolute, nodeSep):
     yCo = absolute[0]//nodeSep
@@ -139,12 +117,14 @@ def findLowerNodes(topNodes, nodeMap) -> tuple[list[tuple], list[tuple]]:
 
     return (foundNodes, floorNodes)
 
-def traverseFloor(nodeMap, jumpForceInNodes, nodeSep, origin):
+def traverseFloor(nodeMap, jumpForceInNodes, origin):
     step = 1
     current = list(origin)
     foundNodes = []
     newFloors = []
     corners = []
+
+    waypoints = []
     for x in range(2):
         stop = False
         while current[0] in range(0, len(nodeMap)) and current[1] in range(0, len(nodeMap[0])) and not stop:
@@ -163,8 +143,10 @@ def traverseFloor(nodeMap, jumpForceInNodes, nodeSep, origin):
                     ]
                     if previousCollisionState[0] and not currentCollisionState[0]:
                         newFloors.append((current[0] - stepUp, current[1] - 1, "ground", "r"))
+                        waypoints.append(((current[0], current[1]), "->", (current[0] - stepUp, current[1] - 1)))
                     if previousCollisionState[1] and not currentCollisionState[1]:
                         newFloors.append((current[0] - stepUp, current[1] + 1, "ground", "l"))
+                        waypoints.append(((current[0], current[1]), "->", (current[0] - stepUp, current[1] + 1)))
                     
                     previousCollisionState = list(tuple(currentCollisionState))
                     currentCollisionState = [False, False]
@@ -174,12 +156,14 @@ def traverseFloor(nodeMap, jumpForceInNodes, nodeSep, origin):
         step *= -1
         current = origin
     
-    return (foundNodes, corners, newFloors)
+    return (foundNodes, corners, newFloors, waypoints)
 
 def precompileGraph(nodeMap, nodeSep, gravityAccel, enemyData, origin):
     floors = [origin]
     traversedFloors = []
     corners = []
+
+    waypoints = []
 
     gravityAccel = -abs(gravityAccel)
 
@@ -194,7 +178,7 @@ def precompileGraph(nodeMap, nodeSep, gravityAccel, enemyData, origin):
         for floor in floors:
             if not floor in traversedFloors:
                 traversedFloors.append(floor)
-                response = traverseFloor(nodeMap=nodeMap, jumpForceInNodes=jumpHeightInNodes, nodeSep=nodeSep, origin=floor)
+                response = traverseFloor(nodeMap=nodeMap, jumpForceInNodes=jumpHeightInNodes, origin=floor)
                 for node in response[0]:
                     if not node in allNodes:
                         allNodes.append(node)
@@ -207,6 +191,9 @@ def precompileGraph(nodeMap, nodeSep, gravityAccel, enemyData, origin):
                     if not newFloor in traversedFloors:
                         buffer.append((newFloor[0], newFloor[1], newFloor[2]))
                         corners.append((newFloor[0], newFloor[1], newFloor[3]))
+                for waypoint in response[3]:
+                    if not waypoint in waypoints:
+                        waypoints.append(waypoint)
 
         for corner in corners:
             topNodes = jumpOffEdge(u=enemyData["jumpForce"], g=gravityAccel, maxXSpeed=enemyData["maxSpeed"][1], origin=corner, nodeMap=nodeMap, nodeSep=nodeSep, direction=corner[2])
@@ -215,23 +202,142 @@ def precompileGraph(nodeMap, nodeSep, gravityAccel, enemyData, origin):
                 if not node in allNodes:
                     allNodes.append(node)
             for newFloor in response[1]:
+                newWaypoint = (((corner[0], corner[1]), "->", (newFloor[0], newFloor[1])))
                 if not (newFloor in traversedFloors or newFloor in floors):
                     buffer.append(newFloor)
+                if not newWaypoint in waypoints:
+                    waypoints.append(newWaypoint)
         corners = []
         floors = list(tuple(buffer))
     
-    return allNodes
+    buffer = []
+    for waypoint in waypoints:
+        if not waypoint[0] == waypoint[2]:
+            buffer.append(waypoint)
+    waypoints = list(tuple(buffer))
+    buffer = []
+    for waypoint in waypoints:
+        if (waypoint[2], "->", waypoint[0]) in waypoints:
+            buffer.append((waypoint[0], "<->", waypoint[2]))
+        else:
+            if not waypoint in buffer:
+                buffer.append(waypoint)
+    waypoints = list(tuple(buffer))
+    buffer = []
+    for waypoint in waypoints:
+        if not (waypoint[2], waypoint[1], waypoint[0]) in buffer:
+            buffer.append(waypoint)
+    
+    waypoints = buffer
+    
+    return (allNodes, waypoints)
 
-if __name__ == "__main__":
-    testGraph = []
+def connectAdjacentWaypoints(waypoints: list[tuple]):
+    adjacentPaths = []
+    for waypoint in waypoints:
+        left = (waypoint[0], waypoint[1] - 1)
+        right = (waypoint[0], waypoint[1] + 1)
+        for remainingWaypoint in waypoints:
+            if left == remainingWaypoint[0] or left == remainingWaypoint[2]:
+                adjacentPaths.append((waypoint, "<->", left))
+            if right == remainingWaypoint[0] or right == remainingWaypoint[2]:
+                adjacentPaths.append((waypoint, "<->", right))
+    waypoints.extend(adjacentPaths)
+    waypoints = cleanWaypoints(waypoints)
+    return waypoints
 
+def getWaypointPaths(waypoints: list[tuple]):
+    paths = waypoints #or []??
+    '''
+    TODO: how is this going to start off?
+    this code assumes that some paths already exist
+    maybe the existing waypoints could act as the preexisting paths?
+    however it would require a full function check over to make sure i dont fall down a rabbit hole of nightmare errors
+    i cant do this tonight though
+    im out of energy
+    '''
+    queriedCoordinates = []
+    while any(waypoint[0] not in queriedCoordinates for waypoint in waypoints):
+        for waypoint in waypoints:
+            if not waypoint[0] in queriedCoordinates:
+                coordinateQuery = waypoint[0]
+        queriedCoordinates.append(coordinateQuery)
+        waypointsStartingWithQuery = [waypoint for waypoint in waypoints if waypoint[0] == coordinateQuery]
+        waypointsEndingWithQuery = [waypoint for waypoint in waypoints if waypoint[2] == coordinateQuery]
+        pathSplits = []
+        updatedTargetPaths = []
+        for waypoint in waypointsStartingWithQuery:
+            targetPaths = [tuple(path) for path in paths if waypoint[2] in path] #look for paths containing the end node which the query connects to
+            targetPaths.extend(tuple(path) for path in updatedTargetPaths if waypoint[2] in path) #since paths might not 
+            targetPaths.extend(tuple(path) for path in pathSplits if waypoint[2] in path)
+            for path in targetPaths:
+                if path[0] == waypoint[2]: #check if the path begins with the target
+                    paths.remove(path)
+                    path = list(path)
+                    path.insert(0, waypoint[1]) #insert it at index 0 if so
+                    path.insert(0, waypoint[0])
+                    updatedTargetPaths.append(tuple(path))
+                else:
+                    previousWaypointIndex = path.index(waypoint[2]) - 2 #get the index of where it is in the path and find the previous node (remember - the path goes node, connection, node, connection....)
+                    previousWaypoint = path[previousWaypointIndex]
+                    connection = ""
+                    connectionFound = False
+                    for index, value in enumerate(waypoints): #check if the previous waypoint node connects to our current node
+                        if (previousWaypoint == value[0] and value[1] == "<->") or (previousWaypoint == value[2]):
+                            connectionFound = True
+                            connection = value[1] #if so, store the connection
+                            break
+                    if connectionFound: #if it does connect (reminder: waypoint => [query, connection, target])
+                        paths.remove(path)
+                        path = list(path)
+                        path.pop(previousWaypointIndex + 1) #remove the old connection
+                        path.insert(previousWaypointIndex, waypoint[1]) #insert the new one
+                        path.insert(previousWaypointIndex, waypoint[0]) #insert the query
+                        path.insert(previousWaypointIndex, connection) #insert the connection between the previous node and the query
+                        updatedTargetPaths.append(tuple(path)) #update the path
+                    else: #if it doesn't connect
+                        segmentStart = path.index(waypoint[2]) #split the old path at the target
+                        newPath = [waypoint[0], waypoint[1]] #start a new path
+                        extension = [path[nodeIndex] for nodeIndex in range(segmentStart, len(path))] #append whats left of the old path to the new path
+                        newPath.extend(extension)
+                        pathSplits.append(newPath) #add it as a new pathSplit
+        
+        for waypoint in waypointsEndingWithQuery:
+            targetPaths = [tuple(path) for path in paths if waypoint[0] in path]
+            targetPaths.extend(tuple(path) for path in updatedTargetPaths if waypoint[0] in path)
+            targetPaths.extend(tuple(path) for path in pathSplits if waypoint[0] in path)
+            for path in targetPaths: #waypoint => [target, connection, query]
+                if path[len(path) - 1] == waypoint[0]:
+                    path = list(path)
+                    path.append(waypoint[1])
+                    path.append(waypoint[2])
+                else:
+                    connection = None
+                    for index, value in enumerate()
+
+    '''
+    so i dont lose my train of thought:
+    - my current issue is the len(waypoints) == 0
+    i need to check all *unique* coordinates in waypoints...
+    so what if i added an exclusion list and instead set the condition to any('values not in exclusionList')
+    '''
+        
+
+def cleanWaypoints(waypoints):
+    clean = []
+    for waypoint in waypoints:
+        if not ([waypoint[2], "->", waypoint[0]]) in clean or [waypoint[2], "<->", waypoint[0]] in clean:
+            clean.append(waypoint)
+    return clean
+
+def getTestGraph():
     testGraph = []
     for x in range(6):
         testGraph.append([" " for x in range(20)])
     a = ["#" for x in range(9)]
     a += [" " for x in range(11)]
     testGraph.append(a)
-    for x in range(2):
+    for x in range(10):
         testGraph.append([" " for x in range(20)])
     a = [" " for x in range(10)]
     a += ["#" for x in range(10)]
@@ -241,7 +347,12 @@ if __name__ == "__main__":
     for x in range(1):
         testGraph.append(["#" for x in range(20)]) #stupid python
     
-    origin = (5,0)
+    return testGraph
+
+if __name__ == "__main__":
+    testGraph = getTestGraph()
+    
+    origin = (5, 0)
 
     gravityAccel = 9.81 * 15
     nodeSep = 10
@@ -251,9 +362,14 @@ if __name__ == "__main__":
         "maxSpeed": (0, 25)
     }
 
-    allNodes = precompileGraph(nodeMap=testGraph, nodeSep=nodeSep, gravityAccel=gravityAccel, enemyData=enemyData, origin=origin)
+    response = precompileGraph(nodeMap=testGraph, nodeSep=nodeSep, gravityAccel=gravityAccel, enemyData=enemyData, origin=origin)
+    allNodes = response[0]
+    waypoints = response[1]
 
     for x in allNodes:
         testGraph[x[0]][x[1]] = "x"
-    for line in testGraph:
-        print(line)
+    for w in waypoints:
+        testGraph[w[0][0]][w[0][1]] = "W"
+        testGraph[w[2][0]][w[2][1]] = "W"
+    #for line in testGraph:
+    #    print(line)

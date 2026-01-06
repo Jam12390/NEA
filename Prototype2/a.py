@@ -1,4 +1,5 @@
 from suvat import *
+from typing import Union
 
 def nearestNode(absolute, nodeSep):
     yCo = absolute[0]//nodeSep
@@ -232,19 +233,86 @@ def precompileGraph(nodeMap, nodeSep, gravityAccel, enemyData, origin):
     
     return (allNodes, waypoints)
 
-def connectAdjacentWaypoints(waypoints: list[tuple]):
-    adjacentPaths = []
-    for waypoint in waypoints:
-        left = (waypoint[0], waypoint[1] - 1)
-        right = (waypoint[0], waypoint[1] + 1)
-        for remainingWaypoint in waypoints:
-            if left == remainingWaypoint[0] or left == remainingWaypoint[2]:
-                adjacentPaths.append((waypoint, "<->", left))
-            if right == remainingWaypoint[0] or right == remainingWaypoint[2]:
-                adjacentPaths.append((waypoint, "<->", right))
-    waypoints.extend(adjacentPaths)
-    waypoints = cleanWaypoints(waypoints)
+#def connectAdjacentWaypoints(waypoints: list[tuple], disconnectedWaypoints: list[tuple]):
+#    adjacentPaths = []
+#    for waypoint in waypoints:
+#        left = (waypoint[0][0], waypoint[0][1] - 1)
+#        right = (waypoint[0][0], waypoint[0][1] + 1)
+#        for remainingWaypoint in waypoints:
+#            if (left == remainingWaypoint[0] or left == remainingWaypoint[2]) and not ((waypoint[0], "<->", left) in waypoints or (left, "<->", waypoint[0]) in waypoints):
+#                adjacentPaths.append((waypoint[0], "<->", left))
+#            if right == remainingWaypoint[0] or right == remainingWaypoint[2] and not ((waypoint[0], "<->", left) in waypoints or (left, "<->", waypoint[0]) in waypoints):
+#                adjacentPaths.append((waypoint[0], "<->", right))
+#    previousAdjLength = len(adjacentPaths)
+#    firstRun = True
+#    while previousAdjLength != len(adjacentPaths) or firstRun:
+#        firstRun = False
+#        adjacentPaths = list(set(adjacentPaths))
+#        for newWaypoint in adjacentPaths:
+#            waypoint = newWaypoint[2]
+#    waypoints.extend(adjacentPaths)
+#    waypoints = cleanWaypoints(waypoints)
+#    return waypoints
+
+def connectAdjacentWaypoints(waypoints: list[tuple], disconnectedWaypoints: list[tuple]):
+    waypointGroups = []
+    while len(disconnectedWaypoints) != 0:
+        newGroup = []
+        yCoord = disconnectedWaypoints[0][0] #disconnectedWaypoints => [ (pointY, pointX), ...]
+        for point in disconnectedWaypoints:
+            if point[0] == yCoord:
+                newGroup.append(point)
+        for point in newGroup:
+            if point in disconnectedWaypoints:
+                disconnectedWaypoints.remove(point)
+        waypointGroups.append(newGroup)
+    newWaypoints = []
+    for group in waypointGroups:
+        splitAt = [0]
+        group = list(group)
+        group.sort(key=lambda point: (point[1]))
+        for index in range(0, len(group)):
+            if index + 1 < len(group):
+                if group[index][1] == group[min(len(group) - 1, index + 1)][1] - 1:
+                    newWaypoints.append((group[index], "<->", group[index + 1]))
+                else:
+                    splitAt.append(index)
+        splitAt.append(len(group) - 1)
+        if len(splitAt) > 2:
+            for splitIndex in range(0, len(splitAt)):
+                if not (splitIndex == 0 or splitIndex == len(splitAt) - 1):
+                    if not (splitAt[splitIndex - 1], "<->", splitAt[splitIndex]) in newWaypoints:
+                        newWaypoints.append((splitAt[splitIndex - 1], "<->", splitAt[splitIndex]))
+    waypoints.extend(newWaypoints)
     return waypoints
+
+
+def verifyPathsFormat(paths: list[tuple[Union[tuple[int, int], str], ...]]):
+    for path in paths:
+        previousItem = ""
+        for item in path:
+            if (type(previousItem) == str and not type(item) == tuple) or (type(previousItem) == tuple and not type(item) == str):
+                raise TypeError(f"WARNING: {path} DOES NOT CONFORM TO TUPLE, STR ALTERNATING RULE")
+            previousItem = item
+        if (not type(path[0]) == tuple) or (not type(path[len(path) - 1]) == tuple):
+            raise TypeError(f"WARNING: {path} DOES NOT BEGIN AND END WITH A TUPLE")
+
+def findPathsFromQueries(paths: list[tuple[Union[tuple[int, int], str], ...]], queries: list[tuple[int, int]]) -> list[tuple[Union[tuple[int, int], str], ...]]:
+    #EACH ITEM IN PATHS SHOULD BEGIN AND END WITH A TUPLE AND ALTERNATE BETWEEN TUPLE AND STR
+    verifyPathsFormat(paths=paths)
+    foundPathIndexes = []
+    for pathIndex in range(0, len(paths)):
+        validPath = True
+        for query in queries:
+            if not query in paths[pathIndex]:
+                validPath = False
+        if validPath:
+            foundPathIndexes.append(pathIndex)
+    foundPaths = []
+    for index in foundPathIndexes:
+        foundPaths.append(paths[index])
+    return foundPaths
+
 
 def getWaypointPaths(waypoints: list[tuple]):
     paths = waypoints #or []??
@@ -313,7 +381,7 @@ def getWaypointPaths(waypoints: list[tuple]):
                     path.append(waypoint[2])
                 else:
                     connection = None
-                    for index, value in enumerate()
+                    #for index, value in enumerate()
 
     '''
     so i dont lose my train of thought:
@@ -364,12 +432,23 @@ if __name__ == "__main__":
 
     response = precompileGraph(nodeMap=testGraph, nodeSep=nodeSep, gravityAccel=gravityAccel, enemyData=enemyData, origin=origin)
     allNodes = response[0]
+
     waypoints = response[1]
+
+    disconnectedWaypoints = []
+    for waypoint in waypoints:
+        if not waypoint[0] in disconnectedWaypoints:
+            disconnectedWaypoints.append(waypoint[0])
+        if not waypoint[2] in disconnectedWaypoints:
+            disconnectedWaypoints.append(waypoint[2])
+    
+    waypoints = connectAdjacentWaypoints(waypoints=waypoints, disconnectedWaypoints=disconnectedWaypoints)
 
     for x in allNodes:
         testGraph[x[0]][x[1]] = "x"
-    for w in waypoints:
+    for w in response[1]:
         testGraph[w[0][0]][w[0][1]] = "W"
         testGraph[w[2][0]][w[2][1]] = "W"
-    #for line in testGraph:
-    #    print(line)
+    for line in testGraph:
+        print(line)
+    pass

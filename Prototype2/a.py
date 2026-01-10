@@ -3,9 +3,6 @@ from typing import Union
 
 def nearestNode(absolute, nodeSep):
     yCo = absolute[0]//nodeSep
-    #if s(u=u, g=g, t=solveS(u=u, g=g, point=absolute[0], direction=direction)) > yCo:
-    #    yCo += 1
-
     return (int(yCo), int(absolute[1]//nodeSep)) #new equation! multiply g by 2 in all equations
 
 def getPointsAcrossCurve(u, g, maxXSpeed, nodeSep, direction, dirEffect):
@@ -80,8 +77,6 @@ def jumpOffEdge(u, g, maxXSpeed, origin, nodeMap, nodeSep, direction):
             newPoint = (roofNode[0] + yDiff, roofNode[1] + xDiff)
             if not newPoint in topNodes:
                 topNodes.append(newPoint)
-            
-    ##Finished topnode stuff
 
     return topNodes
 
@@ -130,16 +125,16 @@ def traverseFloor(nodeMap, jumpForceInNodes, origin):
         stop = False
         while current[0] in range(0, len(nodeMap)) and current[1] in range(0, len(nodeMap[0])) and not stop:
             previousCollisionState = [False, False]
-            if nodeMap[current[0] + 1][max(0, min(len(nodeMap[current[0]]) - 1, current[1] + step))] == " " or not current[1] + step in range(0, len(nodeMap[current[0]])):
+            if nodeMap[current[0]][max(0, min(len(nodeMap[current[0]]) - 1, current[1] + step))] != " " or (nodeMap[current[0]][max(0, min(len(nodeMap[current[0]]) - 1, current[1] + step))] != " " and nodeMap[current[0] - 1][max(0, min(len(nodeMap[current[0]]) - 1, current[1] + step))] == " ") or nodeMap[current[0] + 1][max(0, min(len(nodeMap[current[0]]) - 1, current[1] + step))] == " " or not current[1] + step in range(0, len(nodeMap[current[0]])): #what the fuck
                 stop = True
                 corners.append((current[0], current[1], "l" if step < 0 else "r"))
             foundNodes.append((current[0], current[1], "ground"))
-            stepUp = 1
+            stepUp = 0
             while nodeMap[max(0, current[0] - stepUp)][current[1]] == " " and current[0] - stepUp in range(0, len(nodeMap)) and stepUp <= jumpForceInNodes:
                 if not nodeMap[max(0, current[0] - stepUp)][current[1]] == " " in foundNodes:
                     foundNodes.append((current[0] - stepUp, current[1], None))
                     currentCollisionState = [
-                        current[1] - 1 >= 0 and nodeMap[current[0] - stepUp][max(0, current[1] - 1)] != " ",
+                        current[1] - 1 >= 0 and nodeMap[current[0] - stepUp][max(0, current[1] - 1)] != " ", #-stepUp
                         current[1] + 1 < len(nodeMap[current[0] - stepUp]) and nodeMap[current[0] - stepUp][min(len(nodeMap[current[0] - stepUp]) - 1, current[1] + 1)] != " "
                     ]
                     if previousCollisionState[0] and not currentCollisionState[0]:
@@ -160,6 +155,7 @@ def traverseFloor(nodeMap, jumpForceInNodes, origin):
     return (foundNodes, corners, newFloors, waypoints)
 
 def precompileGraph(nodeMap, nodeSep, gravityAccel, enemyData, origin):
+    origin = findLowerNodes(topNodes=[origin], nodeMap=nodeMap)[1][0]
     floors = [origin]
     traversedFloors = []
     corners = []
@@ -233,26 +229,6 @@ def precompileGraph(nodeMap, nodeSep, gravityAccel, enemyData, origin):
     
     return (allNodes, waypoints)
 
-#def connectAdjacentWaypoints(waypoints: list[tuple], disconnectedWaypoints: list[tuple]):
-#    adjacentPaths = []
-#    for waypoint in waypoints:
-#        left = (waypoint[0][0], waypoint[0][1] - 1)
-#        right = (waypoint[0][0], waypoint[0][1] + 1)
-#        for remainingWaypoint in waypoints:
-#            if (left == remainingWaypoint[0] or left == remainingWaypoint[2]) and not ((waypoint[0], "<->", left) in waypoints or (left, "<->", waypoint[0]) in waypoints):
-#                adjacentPaths.append((waypoint[0], "<->", left))
-#            if right == remainingWaypoint[0] or right == remainingWaypoint[2] and not ((waypoint[0], "<->", left) in waypoints or (left, "<->", waypoint[0]) in waypoints):
-#                adjacentPaths.append((waypoint[0], "<->", right))
-#    previousAdjLength = len(adjacentPaths)
-#    firstRun = True
-#    while previousAdjLength != len(adjacentPaths) or firstRun:
-#        firstRun = False
-#        adjacentPaths = list(set(adjacentPaths))
-#        for newWaypoint in adjacentPaths:
-#            waypoint = newWaypoint[2]
-#    waypoints.extend(adjacentPaths)
-#    waypoints = cleanWaypoints(waypoints)
-#    return waypoints
 
 def connectAdjacentWaypoints(waypoints: list[tuple], disconnectedWaypoints: list[tuple]):
     waypointGroups = []
@@ -279,10 +255,14 @@ def connectAdjacentWaypoints(waypoints: list[tuple], disconnectedWaypoints: list
                     splitAt.append(index)
         splitAt.append(len(group) - 1)
         if len(splitAt) > 2:
+            ignoreNext = False
             for splitIndex in range(0, len(splitAt)):
                 if not (splitIndex == 0 or splitIndex == len(splitAt) - 1):
-                    if not (splitAt[splitIndex - 1], "<->", splitAt[splitIndex]) in newWaypoints:
-                        newWaypoints.append((splitAt[splitIndex - 1], "<->", splitAt[splitIndex]))
+                    if not (splitAt[splitIndex - 1], "<->", splitAt[splitIndex]) in newWaypoints and not ignoreNext:
+                        newWaypoints.append((group[splitAt[splitIndex - 1]], "<->", group[splitAt[splitIndex]]))
+                        ignoreNext = True
+                    else:
+                        ignoreNext = False
     waypoints.extend(newWaypoints)
     return waypoints
 
@@ -313,29 +293,51 @@ def findPathsFromQueries(paths: list[tuple[Union[tuple[int, int], str], ...]], q
         foundPaths.append(paths[index])
     return foundPaths
 
-def getTestGraph():
+def getTestGraph(graphID: int):
     testGraph = []
-    for x in range(6):
-        testGraph.append([" " for x in range(20)])
-    a = ["#" for x in range(9)]
-    a += [" " for x in range(11)]
-    testGraph.append(a)
-    for x in range(10):
-        testGraph.append([" " for x in range(20)])
-    a = [" " for x in range(10)]
-    a += ["#" for x in range(10)]
-    testGraph.append(a)
-    for x in range(2):
-        testGraph.append([" " for x in range(20)])
-    for x in range(1):
-        testGraph.append(["#" for x in range(20)]) #stupid python
+    match graphID:
+        case 0:
+            for x in range(6):
+                testGraph.append([" " for x in range(20)])
+            a = ["#" for x in range(9)]
+            a += [" " for x in range(11)]
+            testGraph.append(a)
+            for x in range(10):
+                testGraph.append([" " for x in range(20)])
+            a = [" " for x in range(10)]
+            a += ["#" for x in range(10)]
+            testGraph.append(a)
+            for x in range(2):
+                testGraph.append([" " for x in range(20)])
+            for x in range(1):
+                testGraph.append(["#" for x in range(20)]) #stupid python
+        case 1:
+            for x in range(9):
+                testGraph.append([" " for x in range(20)])
+            a = ["#" for x in range(9)]
+            a.extend(" " for x in range(3))
+            a.extend("#" for x in range(8))
+            testGraph.append(a)
+            testGraph.append(["#" for x in range(20)])
+        case 2:
+            for x in range(8):
+                testGraph.append([" " for x in range(20)])
+            for x in range(2):
+                a = [" " for x in range(12)]
+                a.extend("#" for x in range(8))
+                testGraph.append(a)
+            a = ["#" for x in range(9)]
+            a.extend(" " for x in range(3))
+            a.extend("#" for x in range(8))
+            testGraph.append(a)
+            testGraph.append(["#" for x in range(20)])
     
     return testGraph
 
-if __name__ == "__main__":
-    testGraph = getTestGraph()
+def main(graphID: int):
+    testGraph = getTestGraph(graphID=graphID)
     
-    origin = (5, 0)
+    origin = (len(testGraph) - 3, 0)
 
     gravityAccel = 9.81 * 15
     nodeSep = 10
@@ -366,4 +368,9 @@ if __name__ == "__main__":
         testGraph[w[2][0]][w[2][1]] = "W"
     for line in testGraph:
         print(line)
+    print("\n")
     pass
+
+if __name__ == "__main__":
+    for x in range(2, 3):
+        main(x)

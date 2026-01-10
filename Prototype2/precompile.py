@@ -1,286 +1,366 @@
-import math
+import suvat
+from typing import Optional
 
-#######################
-## OTHER SUBROUTINES
-
-def getNearestNode(absolute: tuple[float, float], nodeSep: float, nodeMap: list[list[tuple]], boundToCurve: bool = False) -> tuple[int, int]:
-    xCo = absolute[1]//nodeSep #inverted x, y coordinates to stay consistent with list indexes (y, x)
-    yCo = absolute[0]//nodeSep
-
-    if xCo % nodeSep >= nodeSep/2:
-        xCo += 1
-    if yCo % nodeSep <= nodeSep/2:
-        yCo += 1
+class Point():
+    def __init__(self, x, y, nodeMap) -> None:
+        self.__x = x
+        self.__y = y
+        self.__nodeMap = nodeMap
+        self.data = nodeMap[y][x]
+        
+    def isEmpty(self) -> bool:
+        if self.data == " ":
+            return True
+        return False
     
-    #xCo = int(min(len(nodeMap[0])-1, max(xCo, 0))) #clamp xCo to the bounds of nodeMap
-    #yCo = int(min(len(nodeMap)-1, max(yCo, 0)))
+    def isValid(self) -> bool:
+        if self.__x in range(len(self.__nodeMap[0])) and self.__y in range(0, len(self.__nodeMap)):
+            return True
+        return False
 
-    return (int(yCo), int(xCo))
+    def __updateData(self) -> None:
+        if self.isValid():
+            self.data = self.__nodeMap[self.__y][self.__x]
 
-def getLowerNodes(start: tuple, nodeMap: list, exclusionList: list):
-    nodes = []
-    currentNode = start
-    while nodeMap[currentNode[0]][currentNode[1]] == " ":
-        if not currentNode in exclusionList:
-            nodes.append((currentNode[0], currentNode[1], None))
-        currentNode = (currentNode[0]+1, currentNode[1])
-    return nodes
+    def x(self) -> int:
+        return self.__x
+    
+    def setX(self, newX: int) -> None:
+        self.__x = newX
+        self.__updateData()
 
-#####################################
-## PARABOLAS AND JUMPING OFF EDGES
+    def y(self) -> int:
+        return self.__y
+    
+    def setY(self, newY: int) -> None:
+        self.__y = newY
+        self.__updateData()
+    
+    def getCoord(self) -> tuple[int, int]:
+        return (self.__y, self.__x)
 
-def findJumpNodes(jumpForce: float, gravityAccel: float, maxSpeed: tuple[float, float], startingNode: tuple[int, int], nodeMap: list[list[tuple]], nodeSep: float, direction: str) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
-    foundNodes = []
-    floorNodes = []
+    def setCoord(self, newX: int, newY: int) -> None:
+        self.__y = newY
+        self.__x = newX
+        self.__updateData()
 
+
+def nearestNode(
+        absolute: tuple[float, float],
+        nodeSep: int
+) -> tuple[int, int]:
+    yCo = absolute[0]//nodeSep
+    return (int(yCo), int(absolute[1]//nodeSep)) 
+
+def getPointsAcrossCurve(
+        u: float,
+        g: float,
+        maxXSpeed: float,
+        origin: Point,
+        nodeMap: list[list[str]],
+        nodeSep: int,
+        dirEffect: int
+) -> list[Point]:
+    numOfPoints = round(10 * maxXSpeed/10)
+    points = []
+
+    g = -abs(g)
+
+    roots = [
+        suvat.solveS(
+            u=u,
+            g=g,
+            point=0,
+            direction="l"
+        ),
+        suvat.solveS(
+            u=u,
+            g=g,
+            point=0,
+            direction="l"
+        )
+    ]
+    roots.remove(0)
+
+    endPoint = roots[0]
+    tStep = dirEffect * (endPoint / numOfPoints)
+    t = 0
+
+    for x in range(numOfPoints + 1): # 1 to numOfPoints inclusive
+        points.append(nearestNode(
+            absolute=suvat.s(u=u, g=g, t=t),
+            nodeSep=nodeSep,
+        ))
+        t += tStep
+    
+    uniquePoints = []
+    for point in points:
+        if not point in uniquePoints: #removing duplicates
+            uniquePoints.append(point)
+    
+    for pointIndex in uniquePoints:
+        uniquePoints[pointIndex] = Point( #converting each unique point to a Point object
+            x=origin.x() - uniquePoints[pointIndex][1], # uniquePoints[pointIndex] => [y, x]
+            y=origin.y() - uniquePoints[pointIndex][0],
+            nodeMap=nodeMap
+        )
+    
+    return uniquePoints
+
+def jumpOffEdge(
+        jumpForce: float,
+        gravity: float,
+        maxXSpeed: float,
+        origin: tuple[int, int],
+        nodeMap: list[list[str]],
+        nodeSep: int,
+        direction: str
+) -> list[Point]:
     if direction == "l":
         dirEffect = -1
     else:
         dirEffect = 1
     
-    u = abs(jumpForce) #this makes sure u and a are the correct signs
-    a = -abs(gravityAccel)
+    parabolaPoints = list[Point](getPointsAcrossCurve(
+        u=jumpForce,
+        g=gravity,
+        maxXSpeed=maxXSpeed,
+        nodeSep=nodeSep,
+        dirEffect=dirEffect
+    ))
+    topNodes = list[Point]([])
 
-    currentT = 0
-    currentXT = 0
-    step = dirEffect * 0.1 #t step
-    topNodes = []
-    currentNode = startingNode
-    currentNodeData = " "
-    stopCurve = False
+    hitRoof = False
+    hitWall = False
+    roofNode = Optional[Point](None)
 
-    #travelling across curve
-    while (not stopCurve) and currentNode[0] in range(0, len(nodeMap)-1) and currentNode[1] in range(0, len(nodeMap[0])-1):
-        currentT += step
-        currentXT += dirEffect * abs(step) #t on the x axis shouldn't be effected by graph reflections
-        xDisplacement = dirEffect * abs(abs(maxSpeed[1]) * currentXT)
-        yDisplacement = dirEffect * ((u * currentT) + (0.5 * a * currentT**2))
-        x = startingNode[1] * nodeSep + xDisplacement
-        y = startingNode[0] * nodeSep - yDisplacement
-        currentNode = getNearestNode(absolute=(y, x), nodeSep=nodeSep, nodeMap=nodeMap, boundToCurve=True)
-        if currentNode[0] in range(0, len(nodeMap)-1) and currentNode[1] in range(0, len(nodeMap[0])-1):
-            currentNodeData = nodeMap[currentNode[0]][currentNode[1]]
-            if currentNodeData == " " and not currentNode in topNodes and not currentNode in foundNodes:
+    for currentNode in parabolaPoints:
+        if not (hitRoof or hitWall) and currentNode.isValid():
+            upperNode = Point(
+                x=currentNode.x(),
+                y=currentNode.y() - 1,
+                nodeMap=nodeMap
+            ),
+            lowerNode = Point(
+                x=currentNode.x(),
+                y=currentNode.y() + 1,
+                nodeMap=nodeMap
+            ),
+            adjacentNode = Point(
+                x=currentNode.x() + 1 * dirEffect,
+                y=currentNode.y(),
+                nodeMap=nodeMap
+            ),
+
+            yVelocity = suvat.v(
+                u=jumpForce,
+                g=gravity,
+                t=suvat.solveS(
+                    u=jumpForce,
+                    g=gravity,
+                    point=currentNode.y(),
+                    direction=direction
+                )
+            )
+
+            if not currentNode.isEmpty() and lowerNode.isEmpty() and yVelocity >= 0:
+                hitRoof = True
+                roofNode = Point(
+                    x=lowerNode.x(),
+                    y=lowerNode.y(),
+                    nodeMap=nodeMap
+                )
+                topNodes.append(lowerNode)
+            elif not currentNode.isEmpty() and adjacentNode.isEmpty():
+                hitWall = True
+            elif not currentNode in topNodes:
                 topNodes.append(currentNode)
-            elif currentNodeData != " ": #currentNode[0] + 1 in range(0, len(nodeMap)-1) and
-                if u + a*currentT < 0 and nodeMap[currentNode[0] + 1][currentNode[1]] == " ": #checking if a roof was hit AND ds/dt is negative
-                    step *= -1 #then reflect the graph
-                else:
-                    stopCurve = True
-    constTopNodes = []
-    constTopNodesBuffer = []
+    
+    if hitRoof:
+        reverseAt = parabolaPoints.index(roofNode)
+        listSegment = [parabolaPoints[index] for index in range(0, reverseAt)]
+        listSegment.reverse()
+
+        for reversedPoint in listSegment:
+            xDiff = dirEffect * abs(roofNode.x() - reversedPoint.x())
+            yDiff = abs(roofNode.y() - reversedPoint.y())
+            newPoint = Point(
+                x=roofNode.x() + xDiff,
+                y=roofNode.y() + yDiff,
+                nodeMap=nodeMap
+            )
+            if not newPoint in topNodes:
+                topNodes.append(newPoint)
+    
+    return topNodes
+
+def getLowerNodes(
+        topNodes: list[Point],
+        nodeMap: list[list[str]]
+) -> tuple[list[Point], list[Point]]:
+    
+    foundNodes = list[Point]([])
+    floorNodes = list[Point]([])
+
     while len(topNodes) != 0:
-        nodeBuffer = []
-        currentIndex = 0
+        newTopNodes = list[Point]([])
+        distanceFromTopNode = 0
         for node in topNodes:
-            constTopNodes.append(node)
-            nodeBuffer.append([])
-            nodeBuffer[currentIndex] = getLowerNodes(start=node, nodeMap=nodeMap, exclusionList=foundNodes)
-            if not nodeBuffer[currentIndex][len(nodeBuffer[currentIndex]) - 1] in floorNodes:
-                temp = nodeBuffer[currentIndex][len(nodeBuffer[currentIndex]) - 1]
-                nodeBuffer[currentIndex][len(nodeBuffer[currentIndex]) - 1] = (temp[0], temp[1], "ground")
-                floorNodes.append(nodeBuffer[currentIndex][len(nodeBuffer[currentIndex])-1])
-            foundNodes += nodeBuffer[currentIndex]
-            currentIndex += 1
+            if not node in foundNodes:
+                foundNodes.append(node)
 
-        topNodes = []
-        '''
-        idea: since this recursion could be problematic for large falls
-        (i.e. a 1-1 relationship between x and y movement could cause too much of the graph to be added to foundNodes)
-        we could just change the ratio to like 1-3 or 1-4 to limit how fast the graph expands horizontally
-        '''
+            currentNode = Point(
+                x=node.x(),
+                y=node.y() + 1,
+                nodeMap=nodeMap
+            )
+            indexes = {
+                -1: 0,
+                1: 1
+            }
+            foundNewTopNode = [False, False]
+            xStep = -1
+            if not (currentNode in topNodes or currentNode in foundNodes):
+                while currentNode.isEmpty() and currentNode.isValid():
+                    distanceFromTopNode += 1
+                    foundNodes.append(currentNode)
+                    if distanceFromTopNode / 2 >= 1:
+                        for x in range(2):
+                            if currentNode.x() + xStep in range(0, len(nodeMap[0])) and not foundNewTopNode[indexes[xStep]]:
+                                potentialNode = Point(
+                                    x=currentNode.x() + xStep,
+                                    y=currentNode.y(),
+                                    nodeMap=nodeMap
+                                )
+                                if potentialNode.isEmpty() and not potentialNode in newTopNodes:
+                                    newTopNodes.append(potentialNode)
+                                    foundNewTopNode[indexes[xStep]] = True
+                            xStep *= 1
 
-        excludeCoordinates = [] #janky workaround to not adding repeat coordinates to topNodes D:
-
-        buffer = []
-        bufferXCoordinate = None
-        for nodeListIndex in range(0, len(nodeBuffer)):
-            if bufferXCoordinate != None:
-                if bufferXCoordinate != nodeBuffer[nodeListIndex][0][1]:
-                    buffer.append(nodeBuffer[nodeListIndex-1])
-                    constTopNodesBuffer.append(nodeBuffer[nodeListIndex][0])
-                    bufferXCoordinate = nodeBuffer[nodeListIndex][0][1]
-                elif nodeListIndex == len(nodeBuffer)-1:
-                    buffer.append(nodeBuffer[nodeListIndex])
-                    constTopNodesBuffer.append(nodeBuffer[nodeListIndex][0])
-            else:
-                bufferXCoordinate = nodeBuffer[nodeListIndex][0][1]
-        
-        nodeBuffer = buffer
-        constTopNodes = constTopNodesBuffer
-
-        for columnIndex in range(0, len(nodeBuffer)):
-            for node in nodeBuffer[columnIndex]: #top to bottom
-                if not node in constTopNodes and nodeBuffer[columnIndex].index(node) != 0:
-                    leftNode = (node[1], node[0]-1)
-                    rightNode = (node[1], node[0]+1)
-
-                    if not leftNode[1] in excludeCoordinates and nodeMap[leftNode[0]][leftNode[1]] == " " and nodeMap[min(max(leftNode[0] - 2, 0), len(nodeMap)-1)][leftNode[1]] == " " and not leftNode in foundNodes and not leftNode in constTopNodes: #remember, + is down and - is up in pygame
-                        topNodes.append(leftNode)
-                        excludeCoordinates.append(leftNode[1])
-                    elif nodeMap[leftNode[0]][leftNode[1]] != " " and leftNode[1] in excludeCoordinates:
-                        excludeCoordinates.remove(leftNode[1])
-                    
-                    if not rightNode[1] in excludeCoordinates and nodeMap[rightNode[0]][rightNode[1]] == " " and nodeMap[min(max(rightNode[0] - 2, 0), len(nodeMap)-1)][rightNode[1]] == " " and not rightNode in foundNodes and not rightNode in constTopNodes: #remember, + is down and - is up in pygame
-                        topNodes.append(rightNode)
-                        excludeCoordinates.append(rightNode[1])
-                    elif nodeMap[rightNode[0]][rightNode[1]] != " " and rightNode[1] in excludeCoordinates:
-                        excludeCoordinates.remove(rightNode[1])
-    
-    return (foundNodes, floorNodes) #<= no way im done :O - not just yet <= need to add triangle - *still* need to add triangle <= i dont think the triangle matters
-
-#####################
-## FLOOR TRAVERSAL
-
-def traverseFloor(startingNode: tuple, jumpHeightNodes: int, nodeMap: list) -> tuple[list[tuple[int, int]], list[tuple[int, int]], list[tuple[int, int]]]:
-    corners = []
-    groundedNodes = []
-    airNodes = []
-    newFloors = []
-    offset = 0
-    offsetStep = 1
-    for x in range(2):
-        while nodeMap[min(len(nodeMap), max(startingNode[0] + 1, 0))][min(len(nodeMap[0])-1, max(startingNode[1] + offset, 0))] != " " and startingNode[0] in range(0, len(nodeMap)) and startingNode[1] + offset in range(0, len(nodeMap[0])):
-            groundedNodes.append((startingNode[0], startingNode[1] + offset))
-            airNodes.append([])
-            for y in range(jumpHeightNodes):
-                yNode = startingNode[0] - y
-                if yNode in range(0, len(nodeMap)):
-                    if nodeMap[yNode][startingNode[1] + offset] == " ":
-                        airNodes[len(airNodes)-1].append((yNode, startingNode[1] + offset))
-            offset += offsetStep
-        offset -= offsetStep
-        corners.append((startingNode[0], startingNode[1] + offset, "l" if offset < 0 else "r"))
-        offset = 0
-        offsetStep *= -1
-    
-    airNodes = sorted(airNodes, key=lambda node:(node[0][1]), reverse=False) #sorted on x axis
-    for listIndex in range(0, len(airNodes)):
-        airNodes[listIndex] = sorted(airNodes[listIndex], key=lambda node:(node[0]), reverse=True) #each list sorted on y axis
-    
-    for column in airNodes:
-        previousState = [False, False] #left collision, right collision
-        for node in column:
-            if node[1] - 1 >= 0:
-                if nodeMap[node[0]][node[1] - 1] == " " and previousState[0] == True:
-                    newFloors.append((node[0], node[1]-1))
-                    previousState[0] = False
-                elif nodeMap[node[0]][node[1] - 1] != " ":
-                    previousState[0] = True
+                    currentNode.setY(newY=currentNode.y() + 1)
                 
-            if node[1] + 1 <= len(nodeMap[0])-1:
-                if nodeMap[node[0]][node[1] + 1] == " " and previousState[1] == True:
-                    newFloors.append((node[0], node[1]+1))
-                    previousState[1] = False
-                elif nodeMap[node[0]][node[1] + 1] != " ":
-                    previousState[1] = True
+                if not currentNode.isEmpty():
+                    currentNode.setY(newY=currentNode.y() - 1)
+                    floorNodes.append(currentNode)
+        topNodes = list(tuple(newTopNodes))
     
-    compiledList = []
-    for node in groundedNodes:
-        compiledList.append((node[0], node[1], "ground"))
-    for column in airNodes:
-        for node in column:
-            compiledList.append((node[0], node[1], None))
-    
-    return (compiledList, corners, newFloors) #newFloors are also classed as corners but we cover those anyway
+    return (foundNodes, topNodes)
 
-####################
-## PRECOMPILATION
+def traverseFloor(
+        nodeMap: list[list[str]],
+        jumpForceInNodes: int,
+        origin: Point
+) -> tuple[
+    list[Point],
+    list[tuple[Point, str]],
+    list[tuple[Point, str]],
+    list[tuple[tuple[int, int], str, tuple[int, int]]]
+]:
+    step = 1
+    current = origin
+    next = origin
+    nextFloor = origin
+    foundNodes = list[Point]([])
+    newFloors = list[tuple[Point, str]]([])
+    corners = list[tuple[Point, str]]([])
 
-def precompileEntityGraph(
-        #Parameters for precompileEntityGraph
-        origin: tuple,
-
-        #Parameters for findJumpNodes and traverseFloor
-        jumpForce: float,
-        gravityAccel: float,
-        maxSpeed: tuple,
-        nodeMap: list,
-        nodeSep: float,
-        ) -> list[tuple[int, ...]]: #ITS TIME ITS TIME :DDDDDDDDDDDDDDDD
-    jumpForceNodes = int(abs(-(jumpForce**2)/(2*-abs(gravityAccel))) // nodeSep)
-    graph = []
-
-    #Assume origin is grounded
-    floorNodes = [(origin[0], origin[1], None)]
-    cornersToCheck = []
-
-    while len(floorNodes) != 0:
-        floorBuffer = []
-        for node in floorNodes:
-            if not node in graph:
-                response = traverseFloor(startingNode=node, jumpHeightNodes=jumpForceNodes, nodeMap=nodeMap) #responds with [compiledList, corners, newFloors]
-                pass
-                for responseNode in response[0]:
-                    if not responseNode in graph:
-                        graph.append(responseNode)
-                for corner in response[1]:
-                    if not corner in cornersToCheck:
-                        cornersToCheck.append(corner)
-                for newFloor in response[2]:
-                    if not (newFloor in floorNodes and newFloor in floorBuffer):
-                        floorBuffer.append(newFloor)
-        
-        #floorNodes = [floorBuffer[x] for x in range(0, len(floorBuffer)-1)] #WHY IS IT BEING PASSED IN BY REFERENCE
-        #WHAT THE FUCK
-        #PYTHON
-        temp = tuple(floorBuffer)
-        floorNodes = list(temp)
-        floorBuffer = []
-        print(temp)
-
-        for corner in cornersToCheck:
-            response = findJumpNodes(jumpForce=jumpForce, gravityAccel=gravityAccel, maxSpeed=maxSpeed, startingNode=corner, nodeMap=nodeMap, nodeSep=nodeSep, direction=corner[2])
-            for newFloor in response[1]:
-                if not newFloor in graph and not newFloor in floorNodes:
-                    floorNodes.append(newFloor)
-            for node in response[0]:
-                if not node in graph:
-                    graph.append(node)
-        
-        cornersToCheck = []
-    
-    return graph
-
-if __name__ == "__main__":
-    #testGraph = [
-    #    [" " for x in range(20)] for x in range(4),
-    #    ["#" for x in range(8), " " for x in range(12)],
-    #    [" " for x in range(20)] for x in range(2),
-    #    [" " for x in range(12), "#" for x in range(8)],
-    #    [" " for x in range(20)] for x in range(3),
-    #    ["#" for x in range(20)] for x in range(2)
-    #]
-    testGraph = []
-    for x in range(6):
-        testGraph.append([" " for x in range(20)])
-    a = ["#" for x in range(9)]
-    a += [" " for x in range(11)]
-    testGraph.append(a)
+    waypoints = list[tuple[tuple[int, int], str, tuple[int, int]]]([]) # e.g. ( (1, 0), "->", (1, 4) )
     for x in range(2):
-        testGraph.append([" " for x in range(20)])
-    a = [" " for x in range(10)]
-    a += ["#" for x in range(10)]
-    testGraph.append(a)
-    for x in range(2):
-        testGraph.append([" " for x in range(20)])
-    for x in range(1):
-        testGraph.append(["#" for x in range(20)]) #stupid python
+        stop = False
+        next.setX(newX=next.x() + step)
+        nextFloor.setCoord(
+            newX=next.x(),
+            newY=next.y() + 1
+        )
+        while current.isValid() and not stop:
+            previousCollisionStates = [False, False]
+            if nextFloor.isEmpty() or not next.isEmpty() or not next.isValid():
+                stop = True
+                if not current in corners:
+                    corners.append((current, "l" if step == -1 else "r"))
+            foundNodes.append(current)
+            stepUp = 0
+            while current.isValid() and current.isEmpty() and stepUp <= jumpForceInNodes:
+                leftNode = Point(
+                    x=current.x() - 1,
+                    y=current.y(),
+                    nodeMap=nodeMap
+                )
+                rightNode = Point(
+                    x=current.x() + 1,
+                    y=current.y(),
+                    nodeMap=nodeMap
+                )
+                if not current in foundNodes:
+                    foundNodes.append(current)
 
-    #for line in testGraph:
-    #    print(line)
+                currentCollisionStates = [
+                    leftNode.isValid() and not leftNode.isEmpty(),
+                    rightNode.isValid() and not rightNode.isEmpty()
+                ]
+                if previousCollisionStates[0] and not currentCollisionStates[0]:
+                    newFloors.append(leftNode, "r")
+                    waypoints.append((
+                        (current.y() + stepUp, current.x()),
+                        "->",
+                        (leftNode.y(), leftNode.x())
+                    ))
+                if previousCollisionStates[1] and not currentCollisionStates[1]:
+                    newFloors.append(rightNode, "l")
+                    waypoints.append((
+                        (current.y() + stepUp, current.x()),
+                        "->",
+                        (rightNode.y(), rightNode.x())
+                    ))
+                
+                previousCollisionStates = list(tuple(currentCollisionStates))
+                currentCollisionStates = [False, False]
+                stepUp += 1 #keep at end
+                current.setY(newY=current.y() - stepUp)
+                next.setX(newX=next.x() + step)
+                nextFloor.setX(newX=next.x())
+        step *= -1 #reverse direction
+        current = origin
+        next = origin
     
-    origin = (8, 19)
-    #Test data:
-    jumpForce = 125
+    return (foundNodes, corners, newFloors, waypoints)
 
-    gravityAccel = 9.81 * 15
-    maxSpeed = (0, 10)
-    nodeSep = 13
 
-    response = precompileEntityGraph(origin=origin, jumpForce=jumpForce, gravityAccel=gravityAccel, maxSpeed=maxSpeed, nodeMap=testGraph, nodeSep=nodeSep)
-    for node in response:
-        testGraph[node[0]][node[1]] = "x"
-    
-    for line in testGraph:
-        print(line)
+def precompileGraph(
+        nodeMap: list[list[str]],
+        nodeSep: int,
+        gravity: float,
+        enemyData: dict,
+        origin: tuple[int, int]
+):
+    origin = getLowerNodes(
+        topNodes=[Point(
+            x=origin[1],
+            y=origin[0],
+            nodeMap=nodeMap
+        )],
+        nodeMap=nodeMap
+    )[1][0]
+
+    floors = list[Point]([origin])
+    traversedFloors = []
+    corners = []
+
+    gravity = -abs(gravity)
+
+    maxJumpHeight = suvat.s(
+        u=enemyData["jumpForce"],
+        g=gravity,
+        t=suvat.solveV(
+            targetV=0,
+            u=enemyData["jumpForce"],
+            g=gravity
+        )
+    )
+    jumpHeightInNodes = maxJumpHeight // nodeSep
+
+    allNodes = []
+    waypoints = []
+
+    while len(floors) != 0:
+        

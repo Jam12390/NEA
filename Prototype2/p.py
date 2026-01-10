@@ -1,6 +1,6 @@
 import math
 from suvat import *
-from a import precompileGraph, getTestGraph, connectAdjacentWaypoints, findPathsFromQueries
+from a import precompileGraph, getTestGraph, connectAdjacentWaypoints, findPathsFromQueries, findLowerNodes
 from typing import Optional, Union
 
 class Stack():
@@ -80,7 +80,7 @@ def cascadeUpdate(nodes: list[TopDownNode], startNode: TopDownNode):
     return nodes
 
 
-def getTopDownPath(graph, start, end, directionalGraph: Optional[list[tuple[Union[tuple[int, int], str], ...]]]):
+def getTopDownPath(graph, start, end, directionalGraph: Optional[list[tuple[tuple[int, int], str, tuple[int, int]]]]): #[((y, x), "->", (y2, x2))] | None
     if directionalGraph != None:
         useDirections = True
     else:
@@ -146,6 +146,17 @@ def flattenPath(nodeMap, path):
     return flattenedPath
 
 def pathfind(graph, nodeMap, start, end, waypoints, disconnectedWaypoints):
+    if not (start[0] in range(0, len(nodeMap)) and start[1] in range(0, len(nodeMap[0])) and end[0] in range(0, len(nodeMap)) and end[1] in range(0, len(nodeMap[0]))):
+        return []
+
+    start = findLowerNodes(topNodes=[start], nodeMap=nodeMap)[0]
+    start = start[len(start) - 1]
+    end = findLowerNodes(topNodes=[end], nodeMap=nodeMap)[0]
+    end = end[len(end) - 1]
+
+    start = (start[0], start[1])
+    end = (end[0], end[1])
+
     absolutePath = getTopDownPath( #for some reason
         graph=graph,
         start=start,
@@ -180,10 +191,10 @@ def pathfind(graph, nodeMap, start, end, waypoints, disconnectedWaypoints):
 
 
 def main():
-    testGraph = getTestGraph()
+    testGraph = getTestGraph(graphID=1)
 
-    start = (19, 19)
-    end = (16, 19)
+    start = (8, 0)
+    end = (8, 19)
 
     gravityAccel = 9.81 * 15
     nodeSep = 10

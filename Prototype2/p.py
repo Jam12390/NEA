@@ -1,6 +1,7 @@
 import math
 from suvat import *
-from a import precompileGraph, getTestGraph, connectAdjacentWaypoints, findPathsFromQueries, findLowerNodes
+#from a import precompileGraph, getTestGraph, connectAdjacentWaypoints, findPathsFromQueries, findLowerNodes
+import precompile
 from typing import Optional, Union
 
 class Stack():
@@ -36,7 +37,8 @@ def getAdjacentNodes(graph, node, directionalGraph: Optional[list[tuple[Union[tu
         useDirections = False
     adjacentNodes = []
     if useDirections and directionalGraph != None:
-        pathsContainingQuery = findPathsFromQueries(paths=directionalGraph, queries=[node.coord])
+        #pathsContainingQuery = findPathsFromQueries(paths=directionalGraph, queries=[node.coord])
+        pathsContainingQuery = precompile.queryWaypoints(waypoints=directionalGraph, query=node.coord)
         for potentialPath in pathsContainingQuery:
             if potentialPath == (node.coord, "->", potentialPath[2]) or potentialPath[1] == "<->":
                 if node.coord == potentialPath[0]:
@@ -149,18 +151,32 @@ def pathfind(graph, nodeMap, start, end, waypoints, disconnectedWaypoints):
     if not (start[0] in range(0, len(nodeMap)) and start[1] in range(0, len(nodeMap[0])) and end[0] in range(0, len(nodeMap)) and end[1] in range(0, len(nodeMap[0]))):
         return []
 
-    start = findLowerNodes(topNodes=[start], nodeMap=nodeMap)[0]
-    start = start[len(start) - 1]
-    end = findLowerNodes(topNodes=[end], nodeMap=nodeMap)[0]
-    end = end[len(end) - 1]
+    start = precompile.getLowerNodes(
+        topNodes=[precompile.Point(
+            x=start[1],
+            y=start[0],
+            nodeMap=nodeMap
+        )],
+        nodeMap=nodeMap
+    )["floorNodes"][0]
+    #start = start[len(start) - 1]
+    end = precompile.getLowerNodes(
+        topNodes=[precompile.Point(
+            x=end[1],
+            y=end[0],
+            nodeMap=nodeMap
+        )],
+        nodeMap=nodeMap
+    )["floorNodes"][0]
+    #end = end[len(end) - 1]
 
-    start = (start[0], start[1])
-    end = (end[0], end[1])
+    #start = (start[0], start[1])
+    #end = (end[0], end[1])
 
     absolutePath = getTopDownPath( #for some reason
         graph=graph,
-        start=start,
-        end=end,
+        start=start.getCoord(),
+        end=end.getCoord(),
         directionalGraph=None
     )
     if len(absolutePath) != 0:
@@ -181,20 +197,20 @@ def pathfind(graph, nodeMap, start, end, waypoints, disconnectedWaypoints):
         waypointPath = getTopDownPath(graph=graph, start=nearestStartWaypoint, end=nearestEndWaypoint, directionalGraph=waypoints)
         finalPath = []
         if len(waypointPath) != 0:
-            finalPath = getTopDownPath(graph=graph, start=start, end=nearestStartWaypoint, directionalGraph=None)
+            finalPath = getTopDownPath(graph=graph, start=start.getCoord(), end=nearestStartWaypoint, directionalGraph=None)
             for nodeIndex in range(0, len(waypointPath) - 1):
                 finalPath.extend(getTopDownPath(graph=graph, start=waypointPath[nodeIndex], end=waypointPath[nodeIndex + 1], directionalGraph=None))
-            finalPath.extend(getTopDownPath(graph=graph, start=nearestEndWaypoint, end=end, directionalGraph=None))
+            finalPath.extend(getTopDownPath(graph=graph, start=nearestEndWaypoint, end=end.getCoord(), directionalGraph=None))
         return finalPath
     else:
         return []
 
 
 def main():
-    testGraph = getTestGraph(graphID=1)
+    testGraph = precompile.getTestGraph(graphID=0)
 
-    start = (8, 0)
-    end = (8, 19)
+    start = (19, 19)
+    end = (16, 19)
 
     gravityAccel = 9.81 * 15
     nodeSep = 10
@@ -204,37 +220,38 @@ def main():
         "maxSpeed": (0, 25)
     }
 
-    response = precompileGraph(
+    response = precompile.precompileGraph(
         nodeMap=testGraph,
         nodeSep=nodeSep,
-        gravityAccel=gravityAccel,
+        gravity=gravityAccel,
         enemyData=enemyData,
         origin=(5, 0)
     )
 
-    graph = response[0]
-    strippedGraph = []
-    for node in graph:
-        if not (node[0], node[1]) in strippedGraph:
-            strippedGraph.append((node[0], node[1]))
+    graph = response["nodes"]
+    #strippedGraph = []
+    #for node in graph:
+    #    if not (node[0], node[1]) in strippedGraph:
+    #        strippedGraph.append((node[0], node[1]))
 
-    waypoints = response[1]
+    waypoints = response["waypointData"]["waypoints"]
+    disconnectedWaypoints = response["waypointData"]["disconnectedWaypoints"]
 
-    disconnectedWaypoints = []
-    for waypoint in waypoints:
-        if not waypoint[0] in disconnectedWaypoints:
-            disconnectedWaypoints.append(waypoint[0])
-        if not waypoint[2] in disconnectedWaypoints:
-            disconnectedWaypoints.append(waypoint[2])
-    
-    disconnectedWaypoints = tuple(disconnectedWaypoints)
-    
-    waypoints = connectAdjacentWaypoints(waypoints=waypoints, disconnectedWaypoints=list(disconnectedWaypoints))
+    #disconnectedWaypoints = []
+    #for waypoint in waypoints:
+    #    if not waypoint[0] in disconnectedWaypoints:
+    #        disconnectedWaypoints.append(waypoint[0])
+    #    if not waypoint[2] in disconnectedWaypoints:
+    #        disconnectedWaypoints.append(waypoint[2])
+    #
+    #disconnectedWaypoints = tuple(disconnectedWaypoints)
+    #
+    #waypoints = connectAdjacentWaypoints(waypoints=waypoints, disconnectedWaypoints=list(disconnectedWaypoints))
     
     #testPath = getTopDownPath(graph=disconnectedWaypoints, start=(94, 1), end=(5, 8), directionalGraph=waypoints)
 
     path = pathfind(
-        graph=strippedGraph,
+        graph=graph,
         nodeMap=testGraph,
         start=start,
         end=end,
@@ -248,3 +265,4 @@ def main():
         print(line)
 
 main()
+pass

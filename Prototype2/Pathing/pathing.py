@@ -1,6 +1,6 @@
 import math
 from suvat import *
-#from a import precompileGraph, getTestGraph, connectAdjacentWaypoints, findPathsFromQueries, findLowerNodes
+import time
 import precompile
 from typing import Optional, Union
 
@@ -122,7 +122,8 @@ def getTopDownPath(graph, start, end, directionalGraph: Optional[list[tuple[tupl
                 if newDistance < nodes[index].shortestDistance:
                     nodes[index].shortestDistance = newDistance
                     overriddenPreviousNodeIndex = getNodeFromCoord(nodes=nodes, coord=nodes[index].previousNode.coord)
-                    nodes[overriddenPreviousNodeIndex].nextNodes.remove(nodes[index].coord)
+                    if nodes[index].coord in nodes[overriddenPreviousNodeIndex].nextNodes:
+                        nodes[overriddenPreviousNodeIndex].nextNodes.remove(nodes[index].coord)
                     nodes = cascadeUpdate(nodes=nodes, startNode=nodes[index])
         nodes[currentNodeIndex].visited = True
     
@@ -206,63 +207,86 @@ def pathfind(graph, nodeMap, start, end, waypoints, disconnectedWaypoints):
         return []
 
 
-def main():
-    testGraph = precompile.getTestGraph(graphID=0)
+def main(
+        start: tuple[int, int],
+        end: tuple[int, int],
+        precompiledData: dict[str, list],
+        nodeMap: list[list[str]]
+):
+    
 
-    start = (19, 19)
-    end = (16, 19)
-
-    gravityAccel = 9.81 * 15
-    nodeSep = 10
-
-    enemyData = {
-        "jumpForce": 100,
-        "maxSpeed": (0, 25)
-    }
-
-    response = precompile.precompileGraph(
-        nodeMap=testGraph,
-        nodeSep=nodeSep,
-        gravity=gravityAccel,
-        enemyData=enemyData,
-        origin=(5, 0)
-    )
+    #start = (29, 80)
+    #end = (18, 38)
 
     graph = response["nodes"]
-    #strippedGraph = []
-    #for node in graph:
-    #    if not (node[0], node[1]) in strippedGraph:
-    #        strippedGraph.append((node[0], node[1]))
 
     waypoints = response["waypointData"]["waypoints"]
     disconnectedWaypoints = response["waypointData"]["disconnectedWaypoints"]
 
-    #disconnectedWaypoints = []
-    #for waypoint in waypoints:
-    #    if not waypoint[0] in disconnectedWaypoints:
-    #        disconnectedWaypoints.append(waypoint[0])
-    #    if not waypoint[2] in disconnectedWaypoints:
-    #        disconnectedWaypoints.append(waypoint[2])
-    #
-    #disconnectedWaypoints = tuple(disconnectedWaypoints)
-    #
-    #waypoints = connectAdjacentWaypoints(waypoints=waypoints, disconnectedWaypoints=list(disconnectedWaypoints))
-    
-    #testPath = getTopDownPath(graph=disconnectedWaypoints, start=(94, 1), end=(5, 8), directionalGraph=waypoints)
-
     path = pathfind(
         graph=graph,
-        nodeMap=testGraph,
+        nodeMap=nodeMap,
         start=start,
         end=end,
         waypoints=waypoints,
         disconnectedWaypoints=list(disconnectedWaypoints)
     )
+    #print(path)
 
     for x in path:
         testGraph[x[0]][x[1]] = "x"
     for line in testGraph:
         print(line)
+    if path == []:
+        print("Invalid Path")
+    print("\n")
 
-main()
-pass
+startTestSet = [
+    (29, 80),
+    (14, 0),
+    (18, 38),
+    (18, 38)
+]
+endTestSet = [
+    (18, 38),
+    (29, 0),
+    (18, 41),
+    (20, 5)
+]
+
+testGraph = precompile.loadMap(fileName="Prototype2/Pathing/tightArea.csv")
+
+gravityAccel = 9.81 * 15
+nodeSep = 10
+
+enemyData = {
+    "jumpForce": 100,
+    "maxSpeed": (0, 25)
+}
+
+response = precompile.precompileGraph(
+    nodeMap=testGraph,
+    nodeSep=nodeSep,
+    gravity=gravityAccel,
+    enemyData=enemyData,
+    origin=(13, 18)
+)
+
+debug = True
+t = time.time()
+if debug:
+    main(
+        start=(13, 18),
+        end=(33, 28),
+        precompiledData=response,
+        nodeMap=testGraph
+    )
+else:
+    for index in range(0, len(startTestSet)):
+        main(
+            start=startTestSet[index],
+            end=endTestSet[index]
+        )
+        pass
+e = time.time()
+print(e - t)

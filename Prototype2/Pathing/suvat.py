@@ -12,8 +12,8 @@ def solveV(targetV, u, g):
 def solveS(u, g, point, direction) -> float:
     #equ = 0 = ut + 0.5at^2 - point
     solutions = [
-        (-u + math.sqrt(u**2 - 2*g*-point))/(2*g),
-        (-u - math.sqrt(u**2 - 2*g*-point))/(2*g)
+        (-u + math.sqrt(max(0, u**2 - 2*g*-point)))/(2*g),
+        (-u - math.sqrt(max(0, u**2 - 2*g*-point)))/(2*g)
     ] #solutions to point
 
     if direction == "l":

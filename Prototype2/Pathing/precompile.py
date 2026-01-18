@@ -1,5 +1,6 @@
 import suvat
-from typing import Optional
+import csv
+import time
 
 class Point():
     def __init__(self, x, y, nodeMap) -> None:
@@ -9,7 +10,7 @@ class Point():
         if x in range(0, len(nodeMap[0])) and y in range(0, len(nodeMap)):
             self.data = nodeMap[y][x]
         else:
-            self.data = "null"
+            self.data = "#"
         
     def isEmpty(self) -> bool:
         if self.data == " ":
@@ -108,12 +109,30 @@ def getPointsAcrossCurve(
     tStep = dirEffect * (endPoint / numOfPoints)
     t = 0
 
-    for x in range(numOfPoints + 1): # 1 to numOfPoints inclusive
-        points.append(nearestNode(
+    hitHash = False
+    while not hitHash:
+        coord = nearestNode(
             absolute=(suvat.s(u=u, g=g, t=abs(t)), maxXSpeed * t),
             nodeSep=nodeSep,
-        ))
+        )
+        coord = (origin.y() - coord[0], origin.x() + coord[1])
+        currentPoint = Point(
+            x=coord[1],
+            y=coord[0],
+            nodeMap=nodeMap
+        )
+        if currentPoint.isEmpty() and currentPoint.isValid():
+            points.append(coord)
+        else:
+            hitHash = True
         t += tStep
+
+    #for x in range(numOfPoints + 1): # 1 to numOfPoints inclusive
+    #    points.append(nearestNode(
+    #        absolute=(suvat.s(u=u, g=g, t=abs(t)), maxXSpeed * t),
+    #        nodeSep=nodeSep
+    #    ))
+    #    t += tStep
     
     uniquePoints = []
     for point in points:
@@ -122,14 +141,14 @@ def getPointsAcrossCurve(
     
     for pointIndex in range(0, len(uniquePoints)):
         uniquePoints[pointIndex] = Point( #converting each unique point to a Point object
-            x=origin.x() + uniquePoints[pointIndex][1], # uniquePoints[pointIndex] => [y, x]
-            y=origin.y() - uniquePoints[pointIndex][0],
+            x=uniquePoints[pointIndex][1], # uniquePoints[pointIndex] => [y, x] origin.x() + 
+            y=uniquePoints[pointIndex][0], # origin.y() - 
             nodeMap=nodeMap
         )
     
-    for point in uniquePoints:
-        print(point.getCoord())
-    print("")
+    #for point in uniquePoints:
+    #    print(point.getCoord())
+    #print("")
     return uniquePoints
 
 def jumpOffEdge(
@@ -236,7 +255,7 @@ def getLowerNodes(
         newTopNodes = list[Point]([])
         distanceFromTopNode = 0
         for node in topNodes:
-            if not inList(query=node, ls=foundNodes):
+            if True: #not inList(query=node, ls=foundNodes):
                 foundNodes.append(node)
 
             currentNode = Point(
@@ -253,7 +272,11 @@ def getLowerNodes(
             if not (inList(query=currentNode, ls=topNodes) or inList(query=currentNode, ls=foundNodes)):
                 while currentNode.isEmpty() and currentNode.isValid():
                     distanceFromTopNode += 1
-                    foundNodes.append(currentNode)
+                    foundNodes.append(Point(
+                        x=currentNode.x(),
+                        y=currentNode.y(),
+                        nodeMap=nodeMap
+                    ))
                     if distanceFromTopNode / 2 >= 1:
                         for x in range(2):
                             if currentNode.x() + xStep in range(0, len(nodeMap[0])) and not foundNewTopNode[indexes[xStep]]:
@@ -411,7 +434,8 @@ def removeDuplicateWaypoints(waypoints: list):
 
 def connectAdjacentWaypoints(
         waypoints: list[tuple],
-        disconnectedWaypoints: list[tuple[int, int]] # (y, x) coord
+        disconnectedWaypoints: list[tuple[int, int]], # (y, x) coord
+        nodeMap: list[list[str]]
 ) -> list[tuple]: #note: removed newWaypoints list
     waypointGroups = []
     while len(disconnectedWaypoints) != 0:
@@ -430,26 +454,61 @@ def connectAdjacentWaypoints(
         waypointGroups.append(newGroup)
     
     for group in waypointGroups:
+        ignoreNextConditions = False
         if not group == []:
             cornerIndexes = list[int]([0])
             for index in range(0, len(group) - 1):
-                if group[index][1] == group[index + 1][1] - 1:
+                if ignoreNextConditions:
+                    cornerIndexes.append(max(1, index))
+                    ignoreNextConditions = False
+                elif group[index][1] == group[index + 1][1] - 1:
                     waypoints.append((group[index], "<->", group[index + 1]))
                 else:
-                    cornerIndexes.append(index)
+                    cornerIndexes.append(max(1, index))
+                    ignoreNextConditions = True
             cornerIndexes.append(len(group) - 1)
 
-            ignoreNext = False
+            cornerIndexes = list(set(cornerIndexes))
+            cornerIndexes.sort()
+
             for cornerIndex in range(0, len(cornerIndexes) - 1):
                 potentialWaypoint = (group[cornerIndexes[cornerIndex]], "<->", group[cornerIndexes[cornerIndex + 1]])
-                if not potentialWaypoint in waypoints and not ignoreNext:
+                validConnection = attemptGroundTraversal(
+                    start=potentialWaypoint[0],
+                    end=potentialWaypoint[2],
+                    nodeMap=nodeMap
+                )
+                if validConnection and not potentialWaypoint in waypoints:
                     waypoints.append(potentialWaypoint)
-                    ignoreNext = True
-                else:
-                    ignoreNext = False
     
     return removeDuplicateWaypoints(waypoints=waypoints)
 
+def attemptGroundTraversal(
+        start: tuple[int, int],
+        end: tuple[int, int],
+        nodeMap: list[list[str]]
+) -> bool:
+    if start[1] < end[1]:
+        step = 1
+    else:
+        step = -1
+
+    nextNode = Point(
+        x=start[1] + 1,
+        y=start[0],
+        nodeMap=nodeMap
+    )
+    nextFloor = Point(
+        x=start[1] + 1,
+        y=start[0] + 1,
+        nodeMap=nodeMap
+    )
+    while nextNode.x() != end[1]:
+        if nextFloor.isEmpty() or not nextNode.isEmpty():
+            return False
+        nextFloor.setX(newX=nextFloor.x() + step)
+        nextNode.setX(newX=nextNode.x() + step)
+    return True
 
 def precompileGraph(
         nodeMap: list[list[str]],
@@ -488,8 +547,8 @@ def precompileGraph(
     waypoints = []
 
     while len(floors) != 0:
-        print(traversedFloors)
-        print([floor.getCoord() for floor in floors])
+        #print(traversedFloors)
+        #print([floor.getCoord() for floor in floors])
         newFloors = []
         for floor in floors:
             if not floor.getCoord() in traversedFloors:
@@ -531,12 +590,22 @@ def precompileGraph(
             for node in topNodes:
                 if node.data != " ":
                     indexesToRemove.append(topNodes.index(node))
-            for index in indexesToRemove:
-                topNodes.pop(index)
+
+            preservedNodes = []
+            for index in range(0, len(topNodes)):
+                if not index in indexesToRemove:
+                    preservedNodes.append(topNodes[index])
+            topNodes = list(tuple(preservedNodes))
             columnNodeData = getLowerNodes(
                 topNodes=topNodes,
                 nodeMap=nodeMap
             )
+            debugData = [x.getCoord() for x in columnNodeData["nodes"]]
+            noDuplicates = []
+            for x in debugData:
+                if not x in noDuplicates:
+                    noDuplicates.append(x)
+            noDuplicates.sort(key=lambda x: x[1])
             for newFloor in columnNodeData["floorNodes"]:
                 if not newFloor.getCoord() in traversedFloors and not (newFloor.getCoord() in allNodes or inList(query=newFloor, ls=floors)): #(newFloor.getCoord() in traversedFloors or newFloor in floors):
                     newFloors.append(newFloor)
@@ -547,11 +616,9 @@ def precompileGraph(
         corners = []
         floors = list(tuple(newFloors))
 
-    
-
     return {
         "nodes": allNodes,
-        "waypointData": compileWaypointData(waypoints=waypoints)
+        "waypointData": compileWaypointData(waypoints=waypoints, nodeMap=nodeMap)
     }
 
 def queryWaypoints(
@@ -566,7 +633,8 @@ def queryWaypoints(
     return foundWaypoints
 
 def compileWaypointData(
-        waypoints: list[tuple[tuple[int, int], str, tuple[int, int]]] # e.g. [ ( (y1, x1) "<->", (y2, x2) ) ]
+        waypoints: list[tuple[tuple[int, int], str, tuple[int, int]]], # e.g. [ ( (y1, x1) "<->", (y2, x2) ) ]
+        nodeMap: list[list[str]]
 ) -> dict[str, list]:
     waypoints = removeDuplicateWaypoints(waypoints=waypoints)
 
@@ -579,8 +647,10 @@ def compileWaypointData(
     
     waypoints = connectAdjacentWaypoints(
         waypoints=waypoints,
-        disconnectedWaypoints=disconnectedWaypoints
+        disconnectedWaypoints=disconnectedWaypoints,
+        nodeMap=nodeMap
     )
+    waypoints.sort(key=lambda waypoint: waypoint[0][0])
 
     return {
         "waypoints": waypoints,
@@ -628,11 +698,23 @@ def getTestGraph(graphID: int) -> list[list[str]]:
     
     return testGraph
 
+def loadMap(fileName: str) -> list[list[str]]:
+    with open(fileName, "r", newline="") as f:
+        data = csv.reader(f, delimiter=" ", quotechar="|")
+        segmentedData = []
+        for row in data:
+            segmentedData.append([x for x in row[0].split(",")])
+        segmentedData.pop(0)
+        testGraph = []
+        for row in segmentedData:
+            testGraph.append([" " if x == "-1" else "#" for x in row])
+        return testGraph
 
-def main(graphID: int):
-    testGraph = getTestGraph(graphID=graphID)
+def main():
+    #testGraph = getTestGraph(graphID=graphID)
+    testGraph = loadMap(fileName="Prototype2/Pathing/tightArea.csv")
 
-    origin = (len(testGraph) - 3, 0)
+    origin = (13, 18)
 
     gravityAccel = 9.81 * 15
     nodeSep = 10
@@ -671,12 +753,25 @@ def main(graphID: int):
         testGraph[x[0][0]][x[0][1]] = "W"
         testGraph[x[2][0]][x[2][1]] = "W"
     
+    pass
     for line in testGraph:
         print(line)
     for waypoint in waypoints:
         print(waypoint)
     pass
 
-for x in range(0, 1):
-    main(graphID=x)
-    print("\n")
+def outputTestGraph(fileName: str) -> None:
+    data = loadMap(fileName=fileName)
+    for row in data:
+        print(row)
+    pass
+
+t = time.time()
+#for x in range(0, 1):
+#    main(graphID=x)
+#    print("\n")
+#if __name__ == "__main__":
+main()
+#outputTestGraph(fileName="tightArea.csv")
+e = time.time()
+print(e - t)

@@ -148,8 +148,29 @@ def flattenPath(nodeMap, path):
         flattenedPath.append(tuple(currentCo))
     return flattenedPath
 
-def pathfind(graph, nodeMap, start, end, waypoints, disconnectedWaypoints):
-    if not (start[0] in range(0, len(nodeMap)) and start[1] in range(0, len(nodeMap[0])) and end[0] in range(0, len(nodeMap)) and end[1] in range(0, len(nodeMap[0]))):
+def pathfind(
+        graph: list[tuple[int, int]],
+        nodeMap: list[list[str]],
+        nodeSep: int,
+        start: tuple[int, int],
+        end: tuple[int, int],
+        waypoints: list[tuple[tuple, str, tuple]],
+        disconnectedWaypoints: list[tuple[int, int]],
+        jumpForce: float,
+        maxXSpeed: float,
+        gravity: float
+    ):
+    rangeCheckSt = precompile.Point(
+        x=start[1],
+        y=start[0],
+        nodeMap=nodeMap
+    )
+    rangeCheckEn = precompile.Point(
+        x=end[1],
+        y=end[0],
+        nodeMap=nodeMap
+    )
+    if not (rangeCheckSt.isValid() and rangeCheckEn.isValid()):
         return []
 
     start = precompile.getLowerNodes(
@@ -160,7 +181,7 @@ def pathfind(graph, nodeMap, start, end, waypoints, disconnectedWaypoints):
         )],
         nodeMap=nodeMap
     )["floorNodes"][0]
-    #start = start[len(start) - 1]
+
     end = precompile.getLowerNodes(
         topNodes=[precompile.Point(
             x=end[1],
@@ -200,36 +221,143 @@ def pathfind(graph, nodeMap, start, end, waypoints, disconnectedWaypoints):
         if len(waypointPath) != 0:
             finalPath = getTopDownPath(graph=graph, start=start.getCoord(), end=nearestStartWaypoint, directionalGraph=None)
             for nodeIndex in range(0, len(waypointPath) - 1):
-                finalPath.extend(getTopDownPath(graph=graph, start=waypointPath[nodeIndex], end=waypointPath[nodeIndex + 1], directionalGraph=None))
+                requiresJump, intermediatePoint = waypointJump(
+                    start=waypointPath[nodeIndex],
+                    end=waypointPath[nodeIndex + 1],
+                    nodeMap=nodeMap,
+                    jumpForce=jumpForce,
+                    maxXSpeed=maxXSpeed,
+                    gravity=gravity,
+                    nodeSep=nodeSep
+                )
+                if requiresJump:
+                    finalPath.extend(getTopDownPath(graph=graph, start=waypointPath[nodeIndex], end=intermediatePoint.getCoord(), directionalGraph=None))
+                    finalPath.extend(getTopDownPath(graph=graph, start=intermediatePoint.getCoord(), end=waypointPath[nodeIndex + 1], directionalGraph=None))
+                else:
+                    finalPath.extend(getTopDownPath(graph=graph, start=waypointPath[nodeIndex], end=waypointPath[nodeIndex + 1], directionalGraph=None))
             finalPath.extend(getTopDownPath(graph=graph, start=nearestEndWaypoint, end=end.getCoord(), directionalGraph=None))
         return finalPath
     else:
         return []
 
+def waypointJump(
+        start: tuple[int, int],
+        end: tuple[int, int],
+        nodeMap: list[list[str]],
+        jumpForce: float,
+        maxXSpeed: float,
+        gravity: float,
+        nodeSep: int
+):
+    start = precompile.Point(
+        x=start[1],
+        y=start[0],
+        nodeMap=nodeMap
+    )
+    end = precompile.Point(
+        x=end[1],
+        y=end[0],
+        nodeMap=nodeMap
+    )
+    if not (start.isValid() and end.isValid()):
+        return False, None
+    traversableByGround = precompile.attemptGroundTraversal(
+        start=start.getCoord(),
+        end=end.getCoord(),
+        nodeMap=nodeMap
+    )
+    if traversableByGround:
+        return False, None
+    if abs(start.x() - end.x()) < 2:
+        return False, None
+    
+    if start.x() < end.x():
+        dirEffect = 1
+    else:
+        dirEffect = -1
+    tempStart = precompile.Point(
+        x=start.x() + dirEffect,
+        y=start.y(),
+        nodeMap=nodeMap
+    )
+    topNodes = precompile.getPointsAcrossCurve(
+        u=jumpForce,
+        g=gravity,
+        maxXSpeed=maxXSpeed,
+        origin=tempStart,
+        nodeMap=nodeMap,
+        nodeSep=nodeSep,
+        dirEffect=dirEffect,
+        solveForMax=True
+    )
+    topNodes[0].setY(topNodes[0].y() + dirEffect)
+    currentNode = 0
+    while not canFallTowardsPoint(
+        target=end,
+        gravity=gravity,
+        maxXSpeed=maxXSpeed,
+        origin=topNodes[currentNode],
+        nodeMap=nodeMap,
+        nodeSep=nodeSep,
+        dirEffect=dirEffect
+    ):
+        currentNode += 1
+    return True, topNodes[currentNode]
+    
+def canFallTowardsPoint(
+        target: precompile.Point,
+        gravity: float,
+        maxXSpeed: float,
+        origin: precompile.Point,
+        nodeMap: list[list[str]],
+        nodeSep: float,
+        dirEffect: int
+):
+    fallNodes = list[precompile.Point](precompile.getPointsAcrossCurve(
+        u=0,
+        g=gravity,
+        origin=origin,
+        nodeMap=nodeMap,
+        nodeSep=nodeSep,
+        maxXSpeed=maxXSpeed,
+        dirEffect=dirEffect
+    ))
+    for node in fallNodes:
+        if target.x() == node.x() and target.y() > node.y():
+            return True
+    return False
+    
 
 def main(
         start: tuple[int, int],
         end: tuple[int, int],
         precompiledData: dict[str, list],
-        nodeMap: list[list[str]]
-):
-    
+        nodeMap: list[list[str]],
+        nodeSep: int,
+        jumpForce: float,
+        maxXSpeed: float,
+        gravity: float
+):    
 
     #start = (29, 80)
     #end = (18, 38)
 
-    graph = response["nodes"]
+    graph = precompiledData["nodes"]
 
-    waypoints = response["waypointData"]["waypoints"]
-    disconnectedWaypoints = response["waypointData"]["disconnectedWaypoints"]
+    waypoints = precompiledData["waypointData"]["waypoints"]
+    disconnectedWaypoints = precompiledData["waypointData"]["disconnectedWaypoints"]
 
     path = pathfind(
         graph=graph,
         nodeMap=nodeMap,
+        nodeSep=nodeSep,
         start=start,
         end=end,
         waypoints=waypoints,
-        disconnectedWaypoints=list(disconnectedWaypoints)
+        disconnectedWaypoints=list(disconnectedWaypoints),
+        jumpForce=jumpForce,
+        maxXSpeed=maxXSpeed,
+        gravity=gravity
     )
     #print(path)
 
@@ -254,14 +382,14 @@ endTestSet = [
     (20, 5)
 ]
 
-testGraph = precompile.loadMap(fileName="Prototype2/Pathing/tightArea.csv")
+testGraph = precompile.loadMap(fileName="Prototype2/Pathing/Maps/sideJumps.csv")
 
 gravityAccel = 9.81 * 15
 nodeSep = 10
 
 enemyData = {
     "jumpForce": 100,
-    "maxSpeed": (0, 25)
+    "maxSpeed": (0, 35)
 }
 
 response = precompile.precompileGraph(
@@ -269,17 +397,21 @@ response = precompile.precompileGraph(
     nodeSep=nodeSep,
     gravity=gravityAccel,
     enemyData=enemyData,
-    origin=(13, 18)
+    origin=(7, 6)
 )
 
 debug = True
 t = time.time()
 if debug:
     main(
-        start=(13, 18),
-        end=(33, 28),
+        start=(7, 6),
+        end=(10, 6),
         precompiledData=response,
-        nodeMap=testGraph
+        nodeMap=testGraph,
+        nodeSep=nodeSep,
+        jumpForce=enemyData["jumpForce"],
+        maxXSpeed=enemyData["maxSpeed"][1],
+        gravity=gravityAccel
     )
 else:
     for index in range(0, len(startTestSet)):

@@ -6,7 +6,7 @@ def s(u, g, t) -> float:
 def v(u, g, t) -> float:
     return u + g*t
 
-def solveV(targetV, u, g):
+def solveV(targetV, u, g) -> float:
     return (targetV-u)/g
 
 def solveS(u, g, point, direction) -> float:

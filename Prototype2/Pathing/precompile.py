@@ -3,7 +3,12 @@ import csv
 import time
 
 class Point():
-    def __init__(self, x, y, nodeMap) -> None:
+    def __init__(
+            self,
+            x: int,
+            y: int,
+            nodeMap: list[list[str]]
+        ) -> None:
         self.__x = x
         self.__y = y
         self.__nodeMap = nodeMap
@@ -82,9 +87,10 @@ def getPointsAcrossCurve(
         origin: Point,
         nodeMap: list[list[str]],
         nodeSep: int,
-        dirEffect: int
+        dirEffect: int,
+        solveForMax: bool = False
 ) -> list[Point]:
-    numOfPoints = round(10 * maxXSpeed/10)
+    accuracy = round(maxXSpeed) #insert optional formula here
     points = []
 
     g = -abs(g)
@@ -103,29 +109,55 @@ def getPointsAcrossCurve(
             direction="r"
         )
     ]
-    roots.remove(0)
+    #roots.remove(0)
+    maxima = suvat.solveV(
+        targetV=0,
+        u=u,
+        g=g
+    )
 
-    endPoint = roots[0] * 2
-    tStep = dirEffect * (endPoint / numOfPoints)
+
+    #endPoint = roots[0] * 2
     t = 0
-
     hitHash = False
-    while not hitHash:
-        coord = nearestNode(
-            absolute=(suvat.s(u=u, g=g, t=abs(t)), maxXSpeed * t),
-            nodeSep=nodeSep,
-        )
-        coord = (origin.y() - coord[0], origin.x() + coord[1])
-        currentPoint = Point(
-            x=coord[1],
-            y=coord[0],
-            nodeMap=nodeMap
-        )
-        if currentPoint.isEmpty() and currentPoint.isValid():
-            points.append(coord)
-        else:
-            hitHash = True
-        t += tStep
+
+    if not solveForMax:
+        tStep = dirEffect / accuracy
+        while not hitHash:
+            coord = nearestNode(
+                absolute=(suvat.s(u=u, g=g, t=abs(t)), maxXSpeed * t),
+                nodeSep=nodeSep,
+            )
+            coord = (origin.y() - coord[0], origin.x() + coord[1])
+            currentPoint = Point(
+                x=coord[1],
+                y=coord[0],
+                nodeMap=nodeMap
+            )
+            if currentPoint.isEmpty() and currentPoint.isValid():
+                points.append(coord)
+            else:
+                hitHash = True
+            t += tStep
+    else:
+        tStep = dirEffect * (maxima / accuracy)
+        while -abs(maxima) <= t and t <= abs(maxima) and not hitHash: #t in range(-abs(maxima), abs(maxima)) and not hitHash:
+            coord = nearestNode(
+                absolute=(suvat.s(u=u, g=g, t=abs(t)), maxXSpeed * t),
+                nodeSep=nodeSep,
+            )
+            coord = (origin.y() - coord[0], origin.x() + coord[1])
+            currentPoint = Point(
+                x=coord[1],
+                y=coord[0],
+                nodeMap=nodeMap
+            )
+            if currentPoint.isEmpty() and currentPoint.isValid():
+                points.append(coord)
+            else:
+                hitHash = True
+            t += tStep
+
 
     #for x in range(numOfPoints + 1): # 1 to numOfPoints inclusive
     #    points.append(nearestNode(
@@ -263,12 +295,8 @@ def getLowerNodes(
                 y=node.y() + 1,
                 nodeMap=nodeMap
             )
-            indexes = {
-                -1: 0,
-                1: 1
-            }
             foundNewTopNode = [False, False]
-            xStep = -1
+            xStep = [-1, 1]
             if not (inList(query=currentNode, ls=topNodes) or inList(query=currentNode, ls=foundNodes)):
                 while currentNode.isEmpty() and currentNode.isValid():
                     distanceFromTopNode += 1
@@ -277,17 +305,22 @@ def getLowerNodes(
                         y=currentNode.y(),
                         nodeMap=nodeMap
                     ))
-                    if distanceFromTopNode / 2 >= 1:
-                        for x in range(2):
-                            if currentNode.x() + xStep in range(0, len(nodeMap[0])) and not foundNewTopNode[indexes[xStep]]:
-                                potentialNode = Point(
-                                    x=currentNode.x() + xStep,
-                                    y=currentNode.y(),
+                    if distanceFromTopNode % 2 == 0:
+                        for x in range(0, 2):
+                            potentialNode = Point(
+                                x=currentNode.x() + xStep[x],
+                                y=currentNode.y(),
+                                nodeMap=nodeMap
+                            )
+                            if potentialNode.isEmpty() and not foundNewTopNode[max(0, xStep[x])]: #and not inList(query=potentialNode, ls=newTopNodes):
+                                newTopNodes.append(Point(
+                                    x=potentialNode.x(),
+                                    y=potentialNode.y(),
                                     nodeMap=nodeMap
-                                )
-                                if potentialNode.isEmpty() and not inList(query=potentialNode, ls=newTopNodes):
-                                    newTopNodes.append(potentialNode)
-                                    foundNewTopNode[indexes[xStep]] = True
+                                ))
+                                foundNewTopNode[max(0, xStep[x])] = True
+                            elif not potentialNode.isEmpty():
+                                foundNewTopNode[max(0, xStep[x])] = False
                             xStep *= 1
 
                     currentNode.setY(newY=currentNode.y() + 1)
@@ -657,47 +690,6 @@ def compileWaypointData(
         "disconnectedWaypoints": disconnectedWaypoints
     }
 
-def getTestGraph(graphID: int) -> list[list[str]]:
-    testGraph = []
-    match graphID:
-        case 0:
-            for x in range(6):
-                testGraph.append([" " for x in range(20)])
-            a = ["#" for x in range(9)]
-            a += [" " for x in range(11)]
-            testGraph.append(a)
-            for x in range(10):
-                testGraph.append([" " for x in range(20)])
-            a = [" " for x in range(10)]
-            a += ["#" for x in range(10)]
-            testGraph.append(a)
-            for x in range(2):
-                testGraph.append([" " for x in range(20)])
-            for x in range(1):
-                testGraph.append(["#" for x in range(20)]) #stupid python
-        case 1:
-            for x in range(9):
-                testGraph.append([" " for x in range(20)])
-            a = ["#" for x in range(9)]
-            a.extend(" " for x in range(3))
-            a.extend("#" for x in range(8))
-            testGraph.append(a)
-            testGraph.append(["#" for x in range(20)])
-        case 2:
-            for x in range(8):
-                testGraph.append([" " for x in range(20)])
-            for x in range(2):
-                a = [" " for x in range(12)]
-                a.extend("#" for x in range(8))
-                testGraph.append(a)
-            a = ["#" for x in range(9)]
-            a.extend(" " for x in range(3))
-            a.extend("#" for x in range(8))
-            testGraph.append(a)
-            testGraph.append(["#" for x in range(20)])
-    
-    return testGraph
-
 def loadMap(fileName: str) -> list[list[str]]:
     with open(fileName, "r", newline="") as f:
         data = csv.reader(f, delimiter=" ", quotechar="|")
@@ -710,18 +702,17 @@ def loadMap(fileName: str) -> list[list[str]]:
             testGraph.append([" " if x == "-1" else "#" for x in row])
         return testGraph
 
-def main():
-    #testGraph = getTestGraph(graphID=graphID)
-    testGraph = loadMap(fileName="Prototype2/Pathing/tightArea.csv")
+def main(map: str):
+    testGraph = loadMap(fileName=map)
 
-    origin = (13, 18)
+    origin = (7, 6)
 
     gravityAccel = 9.81 * 15
     nodeSep = 10
 
     enemyData = {
         "jumpForce": 100,
-        "maxSpeed": (0, 25)
+        "maxSpeed": (0, 35)
     }
 
     response = precompileGraph(
@@ -734,18 +725,6 @@ def main():
 
     allNodes = response["nodes"]
     waypoints = response["waypointData"]["waypoints"]
-
-    #disconnectedWaypoints = []
-    #for waypoint in waypoints:
-    #    if not waypoint[0] in disconnectedWaypoints:
-    #        disconnectedWaypoints.append(waypoint[0])
-    #    if not waypoint[2] in disconnectedWaypoints:
-    #        disconnectedWaypoints.append(waypoint[2])
-    #
-    #waypoints = connectAdjacentWaypoints(
-    #    waypoints=waypoints,
-    #    disconnectedWaypoints=disconnectedWaypoints
-    #)
 
     for x in allNodes:
         testGraph[x[0]][x[1]] = "x"
@@ -767,11 +746,12 @@ def outputTestGraph(fileName: str) -> None:
     pass
 
 t = time.time()
+mapName = "Prototype2/Pathing/Maps/sideJumps.csv"
 #for x in range(0, 1):
 #    main(graphID=x)
 #    print("\n")
 #if __name__ == "__main__":
-main()
-#outputTestGraph(fileName="tightArea.csv")
+main(map=mapName)
+#outputTestGraph(fileName=mapName)
 e = time.time()
 print(e - t)

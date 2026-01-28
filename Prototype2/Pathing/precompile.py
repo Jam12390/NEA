@@ -88,7 +88,8 @@ def getPointsAcrossCurve(
         nodeMap: list[list[str]],
         nodeSep: int,
         dirEffect: int,
-        solveForMax: bool = False
+        solveForMax: bool = False,
+        solvePastMax: bool = False
 ) -> list[Point]:
     accuracy = round(maxXSpeed) #insert optional formula here
     points = []
@@ -129,6 +130,31 @@ def getPointsAcrossCurve(
                 nodeSep=nodeSep,
             )
             coord = (origin.y() - coord[0], origin.x() + coord[1])
+            currentPoint = Point(
+                x=coord[1],
+                y=coord[0],
+                nodeMap=nodeMap
+            )
+            if currentPoint.isEmpty() and currentPoint.isValid():
+                points.append(coord)
+            else:
+                hitHash = True
+            t += tStep
+    elif solvePastMax:
+        tStep = dirEffect * (maxima / accuracy)
+        t = maxima
+        coord = Point(
+            x=origin.x(),
+            y=origin.y(),
+            nodeMap=nodeMap
+        )
+        while not hitHash and coord.isValid():
+            coord = nearestNode(
+                absolute=(suvat.s(u=u, g=g, t=abs(t)), maxXSpeed * (t - maxima)),
+                nodeSep=nodeSep
+            )
+            coord = (origin.y() - coord[0], origin.x() + coord[1])
+            currentPoint = origin.y() - coord[0], origin.x() + coord[1]
             currentPoint = Point(
                 x=coord[1],
                 y=coord[0],
@@ -275,6 +301,64 @@ def jumpOffEdge(
     
     return topNodes
 
+def getAllCoords(ls: list[Point]):
+    coords = []
+    for node in ls:
+        if not node.getCoord() in coords:
+            coords.append(node.getCoord())
+    return coords
+
+def fallOffEdge(
+        origin: tuple[int, int],
+        gravity: float,
+        maxXSpeed: float,
+        nodeMap: list[list[str]],
+        nodeSep: int,
+        direction: str
+) -> list[Point]:
+    if direction == "l":
+        dirEffect = -1
+    else:
+        dirEffect = 1
+    origin = (origin[0], origin[1] + dirEffect)
+
+    curve = list[Point](getPointsAcrossCurve(
+        u=0,
+        g=gravity,
+        origin=Point(
+            x=origin[1],
+            y=origin[0],
+            nodeMap=nodeMap
+        ),
+        maxXSpeed=maxXSpeed,
+        nodeMap=nodeMap,
+        nodeSep=nodeSep,
+        dirEffect=dirEffect,
+        solveForMax=False,
+        solvePastMax=True
+    ))
+    #allCoords = getAllCoords(ls=curve)
+
+    cleanCurve = []
+    for node in curve:
+        if not node.getCoord() in cleanCurve:
+            cleanCurve.append(node)
+    cleanPoints = []
+    for coord in cleanCurve:
+        cleanPoints.append(Point(
+            x=coord.x(),
+            y=coord.y(),
+            nodeMap=nodeMap
+        ))
+    
+    return cleanPoints
+
+#def fallOffEdge( #rough estimate, could miss key coordinates
+#        origin: tuple[int, int],
+#        nodeMap: list[list[str]]
+#):
+    
+
 def getLowerNodes(
         topNodes: list[Point],
         nodeMap: list[list[str]]
@@ -357,7 +441,7 @@ def traverseFloor(
         nodeMap=nodeMap
     )
     foundNodes = list[Point]([])
-    newFloors = list[tuple[Point, str]]([])
+    newFloors = list[Point]([])
     corners = list[tuple[Point, str]]([])
 
     waypoints = list[tuple[tuple[int, int], str, tuple[int, int]]]([]) # e.g. ( (1, 0), "->", (1, 4) )
@@ -447,10 +531,10 @@ def traverseFloor(
         )
     
     return {
-        "nodes": foundNodes, 
-        "corners": corners,
-        "newFloors": newFloors,
-        "waypoints": waypoints
+        "nodes": list[Point](foundNodes), 
+        "corners": list[tuple[Point, str]](corners),
+        "newFloors": list[Point](newFloors),
+        "waypoints": list[tuple[tuple[int, int], str, tuple[int, int]]](waypoints) # => ( (y1, x1), "->", (y2, x2) )
         }
 
 def removeDuplicateWaypoints(waypoints: list):
@@ -494,15 +578,19 @@ def connectAdjacentWaypoints(
                 if ignoreNextConditions:
                     cornerIndexes.append(max(1, index))
                     ignoreNextConditions = False
-                elif group[index][1] == group[index + 1][1] - 1:
+                if group[index][1] == group[index + 1][1] - 1:
                     waypoints.append((group[index], "<->", group[index + 1]))
-                else:
+                #elif group[index][1] == group[max(0, index - 1)][1] + 1 and not (group[index], "<->", (group[max(0, index - 1)][0], group[max(0, index - 1)][1])) in waypoints:
+                #    waypoints.append((group[index], "<->", group[index - 1]))
+                elif not attemptGroundTraversal(start=group[index], end=group[index + 1], nodeMap=nodeMap):
                     cornerIndexes.append(max(1, index))
                     ignoreNextConditions = True
+                else:
+                    waypoints.append((group[index], "<->", group[index + 1]))
             cornerIndexes.append(len(group) - 1)
 
-            cornerIndexes = list(set(cornerIndexes))
-            cornerIndexes.sort()
+            #cornerIndexes = list(set(cornerIndexes))
+            #cornerIndexes.sort()
 
             for cornerIndex in range(0, len(cornerIndexes) - 1):
                 potentialWaypoint = (group[cornerIndexes[cornerIndex]], "<->", group[cornerIndexes[cornerIndex + 1]])
@@ -619,20 +707,51 @@ def precompileGraph(
                 nodeSep=nodeSep,
                 direction = corner[1]
             )
-            indexesToRemove = list[int]([])
-            for node in topNodes:
-                if node.data != " ":
-                    indexesToRemove.append(topNodes.index(node))
-
-            preservedNodes = []
-            for index in range(0, len(topNodes)):
-                if not index in indexesToRemove:
-                    preservedNodes.append(topNodes[index])
-            topNodes = list(tuple(preservedNodes))
-            columnNodeData = getLowerNodes(
-                topNodes=topNodes,
-                nodeMap=nodeMap
+            fallNodes = fallOffEdge(
+                origin=corner[0].getCoord(),
+                gravity=gravity,
+                maxXSpeed=enemyData["maxSpeed"][1],
+                nodeMap=nodeMap,
+                nodeSep=nodeSep,
+                direction=corner[1]
             )
+            columnNodeData = {
+                "nodes": [],
+                "floorNodes": []
+            }
+            for x in range(0, 2):
+                indexesToRemove = list[int]([])
+                if x == 0:
+                    observedList = topNodes
+                else:
+                    observedList = fallNodes
+                for node in observedList:
+                    if node.data != " ":
+                        indexesToRemove.append(observedList.index(node))
+
+                preservedNodes = []
+                for index in range(0, len(observedList)):
+                    if not index in indexesToRemove:
+                        preservedNodes.append(observedList[index])
+                observedList = list(tuple(preservedNodes))
+                response = getLowerNodes(
+                    topNodes=observedList,
+                    nodeMap=nodeMap
+                )
+                columnNodeData["nodes"].extend(response["nodes"])
+                columnNodeData["floorNodes"].extend(response["floorNodes"])
+            cleanColumnData = {
+                "nodes": [],
+                "floorNodes": []
+            }
+            for x in columnNodeData["nodes"]:
+                if not x in cleanColumnData["nodes"]:
+                    cleanColumnData["nodes"].append(x)
+            for x in columnNodeData["floorNodes"]:
+                if not x in cleanColumnData["floorNodes"]:
+                    cleanColumnData["floorNodes"].append(x)
+            columnNodeData = cleanColumnData
+
             debugData = [x.getCoord() for x in columnNodeData["nodes"]]
             noDuplicates = []
             for x in debugData:
@@ -656,14 +775,112 @@ def precompileGraph(
 
 def queryWaypoints(
         waypoints: list[tuple],
-        query: tuple[int, int]
+        query: tuple[int, int] = None,
+        doubleQuery: tuple[int, int] = None,
+        y: int = None,
+        x: int = None,
+        ignoreCompressed: bool = False
 ) -> list[tuple]:
     foundWaypoints = []
     for waypoint in waypoints:
-        if waypoint[0] == query or waypoint[2] == query:
+        if waypoint[0][1] == x or waypoint[2][0] == x:
             foundWaypoints.append(waypoint)
+        if waypoint[0][0] == y or waypoint[2][0] == y:
+            foundWaypoints.append(waypoint)
+        if doubleQuery != None:
+            if (waypoint[0] == query and waypoint[2] == doubleQuery) or (waypoint[0] == doubleQuery and waypoint[2] == query):
+                foundWaypoints.append(waypoint)
+            #elif checkCompressed(query, waypoint) and checkCompressed(doubleQuery, waypoint):
+            #    foundWaypoints.append(waypoint)
+        elif waypoint[0] == query or waypoint[2] == query:
+            foundWaypoints.append(waypoint)
+        #elif query != None:
+        #    if checkCompressed(query, waypoint) and not ignoreCompressed:
+        #        response = queryCompressed(
+        #            waypoints=waypoints,
+        #            compressedWaypoint=waypoint
+        #        )
+        #        for x in response:
+        #            if not x in foundWaypoints:
+        #                foundWaypoints.append(x)
     
     return foundWaypoints
+
+def queryCompressed(
+        waypoints,
+        compressedWaypoint
+):
+    foundWaypoints = []
+    start = compressedWaypoint[0][1]
+    end = compressedWaypoint[2][1]
+    for xCoord in range(start, end + 1):
+        response = queryWaypoints(
+            waypoints=waypoints,
+            query=(compressedWaypoint[0][0], xCoord),
+            ignoreCompressed=True
+        )
+        for x in response:
+            if x[0] == (compressedWaypoint[0][0], xCoord) and not x in foundWaypoints and not x[1] == "-":
+                foundWaypoints.append(x)
+    return foundWaypoints
+
+def checkCompressed(
+        query,
+        waypoint
+):
+    return (waypoint[0][0] == query[0] and waypoint[2][0] == query[0] and waypoint[0][1] <= query[1] and query[1] <= waypoint[2][1])
+    
+
+def queryDisconnectedWaypoints(
+        disconnectedWaypoints: list[tuple[int, int]],
+        x: int = 0,
+        y: int = 0
+) -> list[tuple[int, int]]:
+    foundWaypoints = []
+    for waypoint in disconnectedWaypoints:
+        if waypoint[0] == y or waypoint[1] == x:
+            foundWaypoints.append(waypoint)
+    return foundWaypoints
+
+def checkForDuplicates(waypoints):
+    found = []
+    for x in waypoints:
+        ls = queryWaypoints(waypoints=waypoints, query=x[0], doubleQuery=x[1])
+        if len(ls) > 1:
+            found.extend(ls)
+    return ls
+
+def compressWaypoints(
+        waypoints: list,
+        disconnectedWaypoints: list[tuple[int, int]],
+        nodeMap: list[list[str]]
+):
+    newWaypoints = []
+    waypointsByY = []
+    for yCoord in range(0, len(nodeMap)):
+        waypointsByY.append(queryDisconnectedWaypoints(disconnectedWaypoints=disconnectedWaypoints, y=yCoord))
+    for groupIndex in range(0, len(waypointsByY)):
+        waypointsByY[groupIndex].sort(key=lambda x: x[1])
+        index = 0
+        lEdge = None
+        rEdge = None
+        while index <= len(waypointsByY[groupIndex]) - 1:
+            rEdge = waypointsByY[groupIndex][index]
+            if lEdge == None:
+                lEdge = waypointsByY[groupIndex][index]
+            elif not attemptGroundTraversal(
+                start=lEdge,
+                end=rEdge, #(proposed)
+                nodeMap=nodeMap
+            ):
+                rEdge = waypointsByY[groupIndex][index - 1]
+                waypoints.append((lEdge, "-", rEdge))
+                lEdge = waypointsByY[groupIndex][index]
+            index += 1
+        if lEdge != None:
+            waypoints.append((lEdge, "-", rEdge))
+    return removeDuplicateWaypoints(waypoints=waypoints)
+    
 
 def compileWaypointData(
         waypoints: list[tuple[tuple[int, int], str, tuple[int, int]]], # e.g. [ ( (y1, x1) "<->", (y2, x2) ) ]
@@ -678,17 +895,50 @@ def compileWaypointData(
         if not waypoint[2] in disconnectedWaypoints:
             disconnectedWaypoints.append(waypoint[2])
     
+    a = list(tuple(waypoints))
     waypoints = connectAdjacentWaypoints(
         waypoints=waypoints,
         disconnectedWaypoints=disconnectedWaypoints,
         nodeMap=nodeMap
     )
+    awaypoints = compressWaypoints(
+        waypoints=a,
+        disconnectedWaypoints=disconnectedWaypoints,
+        nodeMap=nodeMap
+    )
     waypoints.sort(key=lambda waypoint: waypoint[0][0])
+
+    #a = checkForDuplicates(waypoints=waypoints)
+    #findInconsistencies(
+    #    waypoints,
+    #    awaypoints,
+    #    nodeMap
+    #)
+    pass
 
     return {
         "waypoints": waypoints,
-        "disconnectedWaypoints": disconnectedWaypoints
+        "disconnectedWaypoints": disconnectedWaypoints,
+        "debug": awaypoints
     }
+
+def findInconsistencies(
+        waypoints1,
+        waypoints2,
+        nodeMap
+):
+    for rowIndex in range(0, len(nodeMap)):
+        for columnIndex in range(0, len(nodeMap[rowIndex])):
+            response1 = queryWaypoints(
+                waypoints=waypoints1,
+                query=(rowIndex, columnIndex)
+            )
+            response2 = queryWaypoints(
+                waypoints=waypoints2,
+                query=(rowIndex, columnIndex)
+            )
+            if len(response1) != len(response2):
+                print(f"Coord: ({rowIndex}, {columnIndex})")
 
 def loadMap(fileName: str) -> list[list[str]]:
     with open(fileName, "r", newline="") as f:
@@ -705,7 +955,7 @@ def loadMap(fileName: str) -> list[list[str]]:
 def main(map: str):
     testGraph = loadMap(fileName=map)
 
-    origin = (7, 6)
+    origin = (26, 32) #(7, 6)
 
     gravityAccel = 9.81 * 15
     nodeSep = 10
@@ -746,12 +996,12 @@ def outputTestGraph(fileName: str) -> None:
     pass
 
 t = time.time()
-mapName = "Prototype2/Pathing/Maps/sideJumps.csv"
+mapName = "Prototype2/Pathing/Maps/tightArea.csv"
 #for x in range(0, 1):
 #    main(graphID=x)
 #    print("\n")
 #if __name__ == "__main__":
-main(map=mapName)
-#outputTestGraph(fileName=mapName)
+#main(map=mapName)
+outputTestGraph(fileName=mapName)
 e = time.time()
 print(e - t)

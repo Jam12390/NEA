@@ -1,5 +1,5 @@
 import pygame
-from dictionaries import allWeapons, allItems
+from Prototype1.dictionaries import allWeapons, allItems
 
 class Weapon(pygame.sprite.Sprite):
     def __init__(self, FPS: int, pID: int, startingPosition: pygame.Vector2):
@@ -52,8 +52,16 @@ class WallObj(pygame.sprite.Sprite):
     def killSelf(self):
         self.kill()
     
-    def update(self):
-        pass
+    def update(self, offset: pygame.Vector2) -> None:
+        offset = pygame.Vector2(
+            round(offset.x),
+            round(offset.y)
+        )
+        self.rect.centerx += offset.x
+        self.rect.centery += offset.y
+    
+    #def update(self):
+    #    pass
 
 class ItemUIWindow(pygame.sprite.Sprite):
     def __init__(self, itemID, replaces, pos, size):

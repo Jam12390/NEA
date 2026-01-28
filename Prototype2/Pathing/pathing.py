@@ -19,7 +19,7 @@ class Stack():
         return len(self.__data) == 0
 
 class TopDownNode():
-    def __init__(self, coord, previousNode, end, shortestDistance) -> None:
+    def __init__(self, coord, previousNode, end, shortestDistance, tolerance: float = 0) -> None:
         self.coord = coord
         self.shortestDistance = shortestDistance
         self.heuristic = getHeuristic(start=coord, end=end)
@@ -27,10 +27,19 @@ class TopDownNode():
         self.nextNodes = []
         self.visited = False
 
-def getHeuristic(start, end) -> float:
-    return math.sqrt( (start[0]-end[0])**2 + (start[1]-end[1])**2)
+def getHeuristic(start, end, axis: Optional[str] = None) -> float:
+    if axis == None or not (axis == "x" or axis=="y"):
+        return math.sqrt( (start[0]-end[0])**2 + (start[1]-end[1])**2)
+    else:
+        match axis:
+            case "x":
+                return abs(end[1] - start[1])
+            case "y":
+                return abs(end[0] - start[0])
+    return 0
 
-def getAdjacentNodes(graph, node, directionalGraph: Optional[list[tuple[Union[tuple[int, int], str], ...]]]):
+
+def getAdjacentNodes(graph, node, directionalGraph: Optional[list[tuple[Union[tuple[int, int], str], ...]]], debug = None):
     if directionalGraph != None:
         useDirections = True
     else:
@@ -40,11 +49,20 @@ def getAdjacentNodes(graph, node, directionalGraph: Optional[list[tuple[Union[tu
         #pathsContainingQuery = findPathsFromQueries(paths=directionalGraph, queries=[node.coord])
         pathsContainingQuery = precompile.queryWaypoints(waypoints=directionalGraph, query=node.coord)
         for potentialPath in pathsContainingQuery:
+            #if potentialPath[1] == "-":
+            #    #DEBUGRESPONSE = precompile.queryWaypoints(waypoints=directionalGraph, query=potentialPath)
+            #    DEBUGRESPONSE = precompile.queryCompressed(waypoints=directionalGraph, compressedWaypoint=potentialPath)
+            #    for x in DEBUGRESPONSE:
+            #        if not x[0] in adjacentNodes:
+            #            adjacentNodes.append(x[0])
+            #    #adjacentNodes.append((potentialPath[0][0], node.coord[1])) #error w. connections containing -
             if potentialPath == (node.coord, "->", potentialPath[2]) or potentialPath[1] == "<->":
                 if node.coord == potentialPath[0]:
                     adjacentNodes.append(potentialPath[2])
                 else:
                     adjacentNodes.append(potentialPath[0])
+            elif not node.coord in potentialPath:
+                adjacentNodes.append(potentialPath[0])
     else:
         presence = [ #(Exists, coord)
             ((node.coord[0], node.coord[1] - 1) in graph, (node.coord[0], node.coord[1] - 1)),
@@ -57,11 +75,35 @@ def getAdjacentNodes(graph, node, directionalGraph: Optional[list[tuple[Union[tu
                 adjacentNodes.append(presence[nodeIndex][1]) #add coord to valid
     return adjacentNodes
 
-def getNextNodeToVisit(nodes: list[TopDownNode]):
+def getNextNodeToVisit(nodes: list[TopDownNode], start: Optional[TopDownNode] = None, preferDirection: Optional[str] = None) -> int:
     nodes.sort(key=lambda node: node.shortestDistance + node.heuristic)
     index = 0
-    while nodes[min(len(nodes) - 1, index)].visited and index < len(nodes):
+    discouragedNodes = [] #if a direction is preferred, we need to store *possible* nodes which aren't in the direction we want in case there aren't any nodes in the preferred direction
+    preferredNodeFound = False
+    while (nodes[min(len(nodes) - 1, index)].visited or (preferDirection != None and not preferredNodeFound)) and index < len(nodes):
+        if not nodes[min(len(nodes) - 1, index)].visited:
+            discouragedNodes.append(index)
         index += 1
+        #if preferredNodeFound:
+        #    preferredNodeFound = False #make sure a preferred node state doesn't carry over to the next check
+        #if index < len(nodes) and preferDirection in ["l", "r", "u", "d"]:
+        #    if preferDirection in ["l", "r"]:
+        #        offset = getHeuristic(start=start.coord, end=nodes[index].coord, axis="x")
+        #    elif preferDirection in ["u", "d"]:
+        #        offset = getHeuristic(start=start.coord, end=nodes[index].coord, axis="y")
+        #    match preferDirection:
+        #        case "l":
+        #            preferredNodeFound = offset < 0
+        #        case "r":
+        #            preferredNodeFound = offset > 0
+        #        case "u":
+        #            preferredNodeFound = offset < 0
+        #        case "d":
+        #            preferredNodeFound = offset > 0
+    
+    #if not preferredNodeFound and preferDirection != None:
+    #    index = discouragedNodes[0]
+            
     if index >= len(nodes):
         return -1
     return index
@@ -82,7 +124,7 @@ def cascadeUpdate(nodes: list[TopDownNode], startNode: TopDownNode):
     return nodes
 
 
-def getTopDownPath(graph, start, end, directionalGraph: Optional[list[tuple[tuple[int, int], str, tuple[int, int]]]]): #[((y, x), "->", (y2, x2))] | None
+def getTopDownPath(graph, start, end, tolerance: int, directionalGraph: Optional[list[tuple[tuple[int, int], str, tuple[int, int]]]] = None, preferDirection: Optional[str] = None, debug = None) -> list[tuple[int, int]]: #directionalGraph => [((y, x), "->", (y2, x2))] | None
     if directionalGraph != None:
         useDirections = True
     else:
@@ -99,11 +141,15 @@ def getTopDownPath(graph, start, end, directionalGraph: Optional[list[tuple[tupl
     currentNode = nodes[0]
     path = []
     while not end in currentNode.nextNodes:
-        currentNodeIndex = getNextNodeToVisit(nodes=nodes)
+        if preferDirection == None:
+            currentNodeIndex = getNextNodeToVisit(nodes=nodes)
+        else:
+            currentNodeIndex = getNextNodeToVisit(nodes=nodes, start=nodes[0], preferDirection=preferDirection)
         if currentNodeIndex == -1:
+            nodes.sort(key=lambda x: x.heuristic) #list(set()) is causing invalid path alongside extra elif, idfk why figure it out
             return []
         currentNode = nodes[currentNodeIndex]
-        adjacentNodes = getAdjacentNodes(graph=graph, node=currentNode, directionalGraph=directionalGraph)
+        adjacentNodes = getAdjacentNodes(graph=graph, node=currentNode, directionalGraph=directionalGraph, debug=debug)
         for node in adjacentNodes:
             index = getNodeFromCoord(nodes=nodes, coord=node)
             if useDirections:
@@ -119,7 +165,7 @@ def getTopDownPath(graph, start, end, directionalGraph: Optional[list[tuple[tupl
                 )) #continue here with cascade updating
                 nodes[currentNodeIndex].nextNodes.append(node)
             else:
-                if newDistance < nodes[index].shortestDistance:
+                if newDistance < nodes[index].shortestDistance and abs(newDistance - nodes[index].shortestDistance) > tolerance:
                     nodes[index].shortestDistance = newDistance
                     overriddenPreviousNodeIndex = getNodeFromCoord(nodes=nodes, coord=nodes[index].previousNode.coord)
                     if nodes[index].coord in nodes[overriddenPreviousNodeIndex].nextNodes:
@@ -154,11 +200,13 @@ def pathfind(
         nodeSep: int,
         start: tuple[int, int],
         end: tuple[int, int],
+        tolerance: int,
         waypoints: list[tuple[tuple, str, tuple]],
         disconnectedWaypoints: list[tuple[int, int]],
         jumpForce: float,
         maxXSpeed: float,
-        gravity: float
+        gravity: float,
+        debug = None
     ):
     rangeCheckSt = precompile.Point(
         x=start[1],
@@ -199,6 +247,7 @@ def pathfind(
         graph=graph,
         start=start.getCoord(),
         end=end.getCoord(),
+        tolerance=tolerance,
         directionalGraph=None
     )
     if len(absolutePath) != 0:
@@ -216,31 +265,118 @@ def pathfind(
                 nearestEndWaypoint = node
                 break
             
-        waypointPath = getTopDownPath(graph=graph, start=nearestStartWaypoint, end=nearestEndWaypoint, directionalGraph=waypoints)
+        waypointPath = getTopDownPath(graph=graph, start=nearestStartWaypoint, end=nearestEndWaypoint, tolerance=tolerance, directionalGraph=waypoints)#preferDirection="d")
         finalPath = []
         if len(waypointPath) != 0:
-            finalPath = getTopDownPath(graph=graph, start=start.getCoord(), end=nearestStartWaypoint, directionalGraph=None)
+            finalPath = getTopDownPath(graph=graph, start=start.getCoord(), end=nearestStartWaypoint, tolerance=tolerance, directionalGraph=None)
+            jumpHeight = abs(s(
+                    u=jumpForce,
+                    g=gravity,
+                    t=solveV(
+                        targetV=0,
+                        u=jumpForce,
+                        g=gravity
+                    )
+                ))
+            jumpHeightInNodes = jumpHeight // nodeSep
             for nodeIndex in range(0, len(waypointPath) - 1):
-                requiresJump, intermediatePoint = waypointJump(
+                if len(finalPath) != 0:
+                    finalPath.pop(len(finalPath) - 1)
+                absolutePath = getTopDownPath(
+                    graph=graph,
                     start=waypointPath[nodeIndex],
                     end=waypointPath[nodeIndex + 1],
+                    tolerance=0
+                )
+                flattenedAbsolutePath = flattenPath(
                     nodeMap=nodeMap,
-                    jumpForce=jumpForce,
-                    maxXSpeed=maxXSpeed,
-                    gravity=gravity,
-                    nodeSep=nodeSep
+                    path=absolutePath
+                )
+                requiresJump = not checkGroundPathValidity(
+                    jumpHeightInNodes=jumpHeightInNodes,
+                    flattenedPath=flattenedAbsolutePath
                 )
                 if requiresJump:
-                    finalPath.extend(getTopDownPath(graph=graph, start=waypointPath[nodeIndex], end=intermediatePoint.getCoord(), directionalGraph=None))
-                    finalPath.extend(getTopDownPath(graph=graph, start=intermediatePoint.getCoord(), end=waypointPath[nodeIndex + 1], directionalGraph=None))
+                    temp, intermediatePoint = waypointJump(
+                        start=waypointPath[nodeIndex],
+                        end=waypointPath[nodeIndex + 1],
+                        nodeMap=nodeMap,
+                        jumpForce=jumpForce,
+                        maxXSpeed=maxXSpeed,
+                        gravity=gravity,
+                        nodeSep=nodeSep
+                    )
+                    intermediatePath = getTopDownPath(
+                        graph=graph,
+                        start=waypointPath[nodeIndex],
+                        end=intermediatePoint.getCoord(),
+                        tolerance=0
+                    )
+                    pathFromIntermediatePoint = getTopDownPath(
+                        graph=graph,
+                        start=intermediatePoint.getCoord(),
+                        end=waypointPath[nodeIndex + 1],
+                        tolerance=0
+                    )
+                    finalPath.extend(intermediatePath)
+                    finalPath.extend(pathFromIntermediatePoint)
                 else:
-                    finalPath.extend(getTopDownPath(graph=graph, start=waypointPath[nodeIndex], end=waypointPath[nodeIndex + 1], directionalGraph=None))
-            finalPath.extend(getTopDownPath(graph=graph, start=nearestEndWaypoint, end=end.getCoord(), directionalGraph=None))
+                    finalPath.extend(flattenedAbsolutePath)
+                #if requiresJump:
+                #    if waypointPath[nodeIndex][1] < waypointPath[nodeIndex + 1][1]:
+                #        preferredDirection = "r"
+                #    elif waypointPath[nodeIndex][1] > waypointPath[nodeIndex + 1][1]:
+                #        preferredDirection = "l"
+                #    else:
+                #        preferredDirection = None
+                #    jumpHeight = abs(s(
+                #        u=jumpForce,
+                #        g=gravity,
+                #        t=solveV(
+                #            targetV=0,
+                #            u=jumpForce,
+                #            g=gravity
+                #        )
+                #    ))
+                #    #jumpHeightInNodes = jumpHeight // nodeSep
+                #    #jumpPath = getTopDownPath(graph=graph, start=waypointPath[nodeIndex], end=intermediatePoint.getCoord(), tolerance=tolerance, directionalGraph=None)
+                #    #jumpPath.extend(getTopDownPath(graph=graph, start=intermediatePoint.getCoord(), end=waypointPath[nodeIndex + 1], tolerance=tolerance, directionalGraph=None, preferDirection=preferredDirection))
+                #    #flattenedJumpPath = flattenPath(nodeMap=nodeMap, path=jumpPath)
+                #    #finalPath.extend(comparePaths(flattenedPath=flattenedJumpPath, jumpPath=jumpPath, jumpHeightInNodes=jumpHeightInNodes))
+                #    finalPath.extend(getTopDownPath(graph=graph, start=waypointPath[nodeIndex], end=intermediatePoint.getCoord(), tolerance=0, directionalGraph=None))
+                #    finalPath.extend(getTopDownPath(graph=graph, start=intermediatePoint.getCoord(), end=waypointPath[nodeIndex + 1], tolerance=0, directionalGraph=None))#, preferDirection=preferredDirection))
+                #else:
+                #    finalPath.extend(getTopDownPath(graph=graph, start=waypointPath[nodeIndex], end=waypointPath[nodeIndex + 1], tolerance=tolerance, directionalGraph=None))
+            finalPath.extend(getTopDownPath(graph=graph, start=nearestEndWaypoint, end=end.getCoord(), tolerance=tolerance, directionalGraph=None))
+        
         return finalPath
     else:
         return []
 
-def waypointJump(
+def comparePaths(
+        flattenedPath,
+        jumpPath,
+        jumpHeightInNodes
+):
+    currentIndex = 0
+    nextIndex = 1
+
+    cleanFlatPath = []
+    for x in flattenedPath:
+        if not x in cleanFlatPath:
+            cleanFlatPath.append(x)
+    flattenedPath = cleanFlatPath
+
+    for x in range(len(flattenedPath) - 1):
+        if abs(flattenedPath[currentIndex][0] - flattenedPath[nextIndex][1]) > jumpHeightInNodes:
+            return jumpPath
+    
+    if len(flattenedPath) <= len(jumpPath):
+        return flattenedPath
+    else:
+        return jumpPath
+
+def waypointJump( #(21, 27), (18, 25)
         start: tuple[int, int],
         end: tuple[int, int],
         nodeMap: list[list[str]],
@@ -261,14 +397,19 @@ def waypointJump(
     )
     if not (start.isValid() and end.isValid()):
         return False, None
-    traversableByGround = precompile.attemptGroundTraversal(
-        start=start.getCoord(),
-        end=end.getCoord(),
-        nodeMap=nodeMap
-    )
+    #traversableByGround = precompile.attemptGroundTraversal(
+    #    start=start.getCoord(),
+    #    end=end.getCoord(),
+    #    nodeMap=nodeMap
+    #)
+    traversableByGround = False
     if traversableByGround:
         return False, None
-    if abs(start.x() - end.x()) < 2:
+    if abs(start.x() - end.x()) < 1:
+        return False, None
+    
+    gradient = -abs(end.y() - start.y()) / abs(end.x() - start.x())
+    if gradient <= -abs(gravity / maxXSpeed):
         return False, None
     
     if start.x() < end.x():
@@ -280,6 +421,8 @@ def waypointJump(
         y=start.y(),
         nodeMap=nodeMap
     )
+    if not tempStart.isEmpty():
+        tempStart = start
     topNodes = precompile.getPointsAcrossCurve(
         u=jumpForce,
         g=gravity,
@@ -292,17 +435,23 @@ def waypointJump(
     )
     topNodes[0].setY(topNodes[0].y() + dirEffect)
     currentNode = 0
-    while not canFallTowardsPoint(
-        target=end,
-        gravity=gravity,
-        maxXSpeed=maxXSpeed,
-        origin=topNodes[currentNode],
-        nodeMap=nodeMap,
-        nodeSep=nodeSep,
-        dirEffect=dirEffect
-    ):
+    exceededRange = currentNode > len(topNodes) - 1
+    foundIntermediatePoint = False
+    while not (exceededRange or foundIntermediatePoint):
+        foundIntermediatePoint = canFallTowardsPoint(
+            target=end,
+            gravity=gravity,
+            maxXSpeed=maxXSpeed,
+            origin=topNodes[currentNode],
+            nodeMap=nodeMap,
+            nodeSep=nodeSep,
+            dirEffect=dirEffect
+        )
         currentNode += 1
-    return True, topNodes[currentNode]
+        exceededRange = currentNode > len(topNodes) - 1
+    if exceededRange:
+        return False, None
+    return True, topNodes[currentNode - 1]
     
 def canFallTowardsPoint(
         target: precompile.Point,
@@ -326,7 +475,38 @@ def canFallTowardsPoint(
         if target.x() == node.x() and target.y() > node.y():
             return True
     return False
+
+def checkGroundPathValidity(
+        jumpHeightInNodes: int,
+        flattenedPath: list[tuple[int, int]]
+) -> bool:
+    currentIndex = 0
+    nextIndex = 1
+    for index in range(0, len(flattenedPath) - 1):
+        currentY = flattenedPath[currentIndex][0]
+        nextY = flattenedPath[nextIndex][0]
+        if currentY > nextY and currentY - nextY > jumpHeightInNodes:
+            return False
+        currentIndex += 1
+        nextIndex += 1
+    return True
     
+
+'''
+New idea:
+Instead of frankensteining w path of waypoints
+what if i instead used the flattened path in combination with my initial idea of tracking the upward and downward movement of the path, only using waypoint paths when the path goes down then up
+where it can't directly jump up
+i could then move backwards x number of times, tracking where the path goes up as an increment of x and checking for a waypoint path from the corner where the path goes up
+this should increase efficiency (since the initial path doesn't go wasted)
+and solve my problem of jumping when not required
+
+TODO:
+1. Get flattened path
+2. Iterate through the list, tracking where the path goes down then up
+3. For each pair where the path goes down then up, find a waypoint path between the 2 and use the already in place waypointJump function to bridge the gap
+4. Remove the previous intermediate path and insert the fresh one
+'''
 
 def main(
         start: tuple[int, int],
@@ -345,6 +525,7 @@ def main(
     graph = precompiledData["nodes"]
 
     waypoints = precompiledData["waypointData"]["waypoints"]
+    awaypoints = precompiledData["waypointData"]["debug"]
     disconnectedWaypoints = precompiledData["waypointData"]["disconnectedWaypoints"]
 
     path = pathfind(
@@ -352,14 +533,14 @@ def main(
         nodeMap=nodeMap,
         nodeSep=nodeSep,
         start=start,
-        end=end,
+        end=end, #check for if path wraps around vertically using obj.previousNode and compare if the current previous node is on the same or lower y axis and that "d" is preferred as a direction
+        tolerance=0,
         waypoints=waypoints,
         disconnectedWaypoints=list(disconnectedWaypoints),
         jumpForce=jumpForce,
         maxXSpeed=maxXSpeed,
         gravity=gravity
     )
-    #print(path)
 
     for x in path:
         testGraph[x[0]][x[1]] = "x"
@@ -382,7 +563,7 @@ endTestSet = [
     (20, 5)
 ]
 
-testGraph = precompile.loadMap(fileName="Prototype2/Pathing/Maps/sideJumps.csv")
+testGraph = precompile.loadMap(fileName="Prototype2/Pathing/Maps/tightArea.csv")
 
 gravityAccel = 9.81 * 15
 nodeSep = 10
@@ -397,15 +578,15 @@ response = precompile.precompileGraph(
     nodeSep=nodeSep,
     gravity=gravityAccel,
     enemyData=enemyData,
-    origin=(7, 6)
+    origin=(13, 18)
 )
 
 debug = True
 t = time.time()
 if debug:
     main(
-        start=(7, 6),
-        end=(10, 6),
+        start=(29, 36),
+        end=(34, 33),
         precompiledData=response,
         nodeMap=testGraph,
         nodeSep=nodeSep,

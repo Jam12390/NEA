@@ -106,3 +106,31 @@ final pathing notes:
 			2. findLowerNodes is going 1 too low sometimes
 			Overall - jumpOffEdge never checked if a floor was hit to end the traversal
 			Fix: Added check for hitFloor and added an iteration through topNodes to remove any floorNodes
+
+	- nodes encased in a wall find no nodes as waypoints
+		Cause: jumpForce too high, therefore first node is # and jump stops
+		Fix: implement fallOffEdge where the precompile algorithm doesn't jump before going off the edge
+	- efficiency:
+		- waypoints size scales too high slowing algorithm
+			Cause: connectAdjacentWaypoints is extremely space inefficient
+			Fix: compressWaypoints + some logic changing in pathing.py
+			- waypoints using compressed connector ("-") are causing issues when being passed to queryWaypoints since waypoints inbetween waypoint[0] and waypoint[2] aren't being included in return
+				Fix: recursively call queryWaypoints with all nodes between waypoint[0] and waypoint[2] inclusive with a new parameter ignoreCompressed to ignore waypoints with the connector "-".
+				Note: linear search may worsen efficiency
+			- for some reason some paths which are valid using connectAdjacentPoints aren't valid using compressWaypoints (all nodes are being marked as visited when there are still available nodes)
+				Debug:
+					(26, 32) -> [(28, 34), (27, 33)]: True
+					(27, 33) -> [(27, 36), (29, 35), (27, 37)]: True
+					(28, 34) -> [(29, 36)]: True
+					(29, 35) -> []: True
+					(29, 36) -> []: True
+					(27, 36) -> []: True
+					(27, 37) -> [(24, 38)]: True
+					(24, 38) -> [(23, 33), (24, 40)]: True
+					(23, 33) -> [(22, 32)]: True
+					(24, 40) -> [(21, 41)]: True
+					(22, 32) -> []: True
+					(21, 41) -> [(24, 39)]: True
+					(24, 39) -> []: True
+					Unvisited but *can* connect to: [(21, 30)]
+					sacked off

@@ -1,5 +1,8 @@
 import pygame
-from Prototype1.dictionaries import allWeapons, allItems
+try:
+    from Prototype1.dictionaries import allWeapons, allItems
+except:
+    from dictionaries import allWeapons, allItems
 
 class Weapon(pygame.sprite.Sprite):
     def __init__(self, FPS: int, pID: int, startingPosition: pygame.Vector2):
@@ -37,7 +40,7 @@ class WallObj(pygame.sprite.Sprite):
             self,
             size: pygame.Vector2,
             position: pygame.Vector2,
-            frictionCoef: float = 1,
+            frictionCoef: tuple[int, int] = (0,75, 0,25), #(x, y)
             spritePath: str = "Sprites/DefaultSprite.png",
             pTag: str = "wall"
         ):
@@ -52,13 +55,14 @@ class WallObj(pygame.sprite.Sprite):
     def killSelf(self):
         self.kill()
     
-    def update(self, offset: pygame.Vector2) -> None:
-        offset = pygame.Vector2(
-            round(offset.x),
-            round(offset.y)
-        )
-        self.rect.centerx += offset.x
-        self.rect.centery += offset.y
+    def update(self) -> None:
+        #offset = pygame.Vector2(
+        #    round(offset.x),
+        #    round(offset.y)
+        #)
+        #self.rect.centerx += offset.x
+        #self.rect.centery += offset.y
+        pass
     
     #def update(self):
     #    pass
@@ -119,6 +123,8 @@ class Item(pygame.sprite.Sprite):
         self.UIWindow = UIWindow
     
     def update(self):
+        #self.rect.centerx += playerMoved.x
+        #self.rect.centery += playerMoved.y
         self.surface.blit(self.image, (175//2, 175//2))
 
     def pickup(self, target):

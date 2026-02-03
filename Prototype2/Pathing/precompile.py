@@ -167,7 +167,8 @@ def getPointsAcrossCurve(
             t += tStep
     else:
         tStep = dirEffect * (maxima / accuracy)
-        while -abs(maxima) <= t and t <= abs(maxima) and not hitHash: #t in range(-abs(maxima), abs(maxima)) and not hitHash:
+        tolerancePastMax = 10
+        while -abs(maxima) - abs(tStep * tolerancePastMax) <= t and t <= abs(maxima) + abs(tStep * tolerancePastMax) and not hitHash: #t in range(-abs(maxima), abs(maxima)) and not hitHash:
             coord = nearestNode(
                 absolute=(suvat.s(u=u, g=g, t=abs(t)), maxXSpeed * t),
                 nodeSep=nodeSep,
@@ -952,10 +953,8 @@ def loadMap(fileName: str) -> list[list[str]]:
             testGraph.append([" " if x == "-1" else "#" for x in row])
         return testGraph
 
-def main(map: str):
-    testGraph = loadMap(fileName=map)
-
-    origin = (26, 32) #(7, 6)
+def main(map: str, origin: tuple[int, int]):
+    testGraph = loadMap(fileName=map) #(7, 6)
 
     gravityAccel = 9.81 * 15
     nodeSep = 10
@@ -996,12 +995,10 @@ def outputTestGraph(fileName: str) -> None:
     pass
 
 t = time.time()
-mapName = "Prototype2/Pathing/Maps/tightArea.csv"
-#for x in range(0, 1):
-#    main(graphID=x)
-#    print("\n")
-#if __name__ == "__main__":
-#main(map=mapName)
+mapName = "Prototype2/Pathing/Maps/testMapMove.csv"
+origin = (0, 0)
+
+#main(map=mapName, origin=origin)
 outputTestGraph(fileName=mapName)
 e = time.time()
 print(e - t)

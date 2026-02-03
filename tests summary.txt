@@ -134,3 +134,82 @@ final pathing notes:
 					(24, 39) -> []: True
 					Unvisited but *can* connect to: [(21, 30)]
 					sacked off
+
+Blackbox Testing:
+	sideJumpsExtreme.csv
+		- Start: (18, 6)
+		- End: (3, 31)
+		Test: Cross map pathing
+		Fail: intermediatePoint => Nonetype has no attribute getCoord()
+		Cause: correct node was 1 node right of maxima
+		Fix: remove solveForMaxima and deal with reduced efficiency OR come up with new equation based off accuracy to render 1 node after maxima
+
+MapLoading:
+	Initial offset incorrect, loaded data at topleft of visible window
+	Cause: Inverted offset
+	Fix: Return offset to original value
+	
+	[Increased tile size 10x]
+	Initial offset incorrect, loaded data too far down and a bit too far right
+	Expected startNode: (16, 0) => Offset: (-50, 1550) with tileSize 100
+	Cause: Never found out, I assume it was from a mistake in how I was handling pygame's coordinate system, or adding unnecessary values
+	Fix: Toyed around with tileSize / 2 and adding/subtracting screenSize / 2 from initialOffset depending on the axis. Also added offset depending on player size to ensure the player always starts on the ground.
+	End Tests:
+		- tileSize = 100: Pass
+		- tileSize = 50: Pass
+		- tileSize = 75: Pass
+		- tileSize = 900: Pass
+
+	+isGrounded is never true, preventing the player from ever jumping
+		- no "floor" tag present in mapLoading.py
+
+Camera:
+	Running into a wall sometimes causes the camera to shift in the direction the player would move
+		- //= playerMoved to round down causes 1 pixel gaps in left and right collision
+		- ignore - sprite implementation makes this acceptable
+		never fucking mind ig
+		alright time to solve this....... fml
+		maybe its from yDiff calculations? ie if both bottom corners are colliding with a difference of 1 pixel yDiff would be doubled explaining the 1 pixel gap?
+		i actually hope so
+		aaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAA
+
+		Cause: Unknown.
+		Fix: Reverted collision back to original renderCollision function and added extra checks for collision in different directions.
+		A victim of my own overthinking *again*
+
+	Camera now sometimes moves slowly even after player stops moving
+	fuck knows why this happens
+
+Movement:
+	Walljumping sometimes doesn't work
+
+	+Player sticks to wall
+		- yFriction is maxed for some reason when running into the wall near the top
+		- WHY IS THE FRICTION COEFFICIENT 1??? THAT LITERALLY HALTS ALL MOVEMENT WTF??
+	
+		++xFriction now isn't strong enough to stop the player fast enough
+			- ohmyfuckinggod separate friction coefs need implementing to solve these errors
+	
+	+xFriction when moving left doesn't guarantee the player comes to a complete stop //FUUUUUUUUUUUUUUUUUUUUUUUUUUUCKKK
+		- IS THE FRICTION COEFFICIENT FUCKING THIS UP TOO????
+		yes.
+		- in a shocking turn of events having a 1 pixel gap between an object and the floor causes the physics engine to shit itself and decide that noooooooooo
+		the object is in fact *not* on the floor and therefore doesn't render xFriction, explaining the complete stop issue (maybe idfk at this point)
+	
+	+++FUUUUUUUKCC ;HUNJHLKDH
+		+++godsaveme repeated function calls in the physics engine causes a performance decrease shockingly who could've seen this coming??????
+			- Caused from 1 pixel error from camera goddammit + general python performance being shit
+			- Implement accuracy for physics which calls for physics updates every x seconds for each physicsObject being rendered
+	
+	All above errors caused by initial camera error
+	Attempted Fixes:
+		- //= 1: Solves error however causes 1 pixel gap
+		- round(playerMoved): Doesn't do anything past a certain speed
+		- if "l" in player.blockedMotion or "r" in player.blockedMotion:
+            playerMoved.x = 0
+        - if "u" in player.blockedMotion or "d" in player.blockedMotion:
+            playerMoved.y = 0: Same effect as //= 1
+	
+
+	+player is slightly offset each collision
+		- maybe add a 2 pixel tolerance to each direction for blockedMotion?

@@ -1,0 +1,78 @@
+import pygame
+try:
+    import Prototype1.OtherClasses as OtherClasses
+except:
+    import OtherClasses
+import csv
+
+def loadMapData(
+        mapName: str,
+        STARTKEY: int,
+        ITEMKEY: int,
+        tileSize: int,
+        baseScreenDimensions: tuple[int, int],
+        playerHeight: int,
+        tileData: dict[int, tuple[str, float]] = {0: ("Sprites/DefaultSprite.png", (0.75, 0.25))}, # ID: (spritePath, frictionCoef => (x, y))
+) -> tuple[pygame.sprite.Group, tuple[int, int]]:
+    mapData = pygame.sprite.Group()
+    with open(f"Prototype2/Pathing/Maps/{mapName}.csv", "r") as map:
+        data = csv.reader(map, delimiter=" ", quotechar="|")
+        segmentedData = []
+        for row in data:
+            segmentedData.append([x for x in row[0].split(",")])
+        segmentedData.pop(0)
+        map.close()
+
+    currentNodePosition = [0, 0] #shouldn't be extended but needs to be modifiable => [y, x]
+    startPos = (0, 0)
+    initialOffset = [(baseScreenDimensions[0] - tileSize) / 2, (baseScreenDimensions[1] + tileSize) / 2] #(baseScreenDimensions[0] + tileSize / 2, baseScreenDimensions[1] + tileSize / 2) [x, y]
+    initialOffset[1] -= (tileSize - playerHeight)
+
+    for row in segmentedData:
+        currentNodePosition[1] = 0
+        for column in row:
+            if not int(column) == -1 and not int(column) == STARTKEY and not int(column) == ITEMKEY: #if tile not empty
+                try:
+                    sprite = tileData[column][0]
+                    frictionCoef = tileData[column][1]
+                except:
+                    sprite = tileData[0][0]
+                    frictionCoef = tileData[0][1]
+                mapData.add(OtherClasses.WallObj(
+                    size= pygame.Vector2(tileSize, tileSize),
+                    position= pygame.Vector2(
+                        x=(currentNodePosition[1] * tileSize),
+                        y=(currentNodePosition[0] * tileSize)
+                    ),
+                    frictionCoef=frictionCoef,
+                    spritePath=sprite,
+                    pTag="floor"
+                ))
+            elif int(column) == STARTKEY:
+                startPos = (
+                    -initialOffset[1] + (currentNodePosition[0] * tileSize),
+                    initialOffset[0] + (currentNodePosition[1] * tileSize)
+                )
+            currentNodePosition[1] += 1
+        currentNodePosition[0] += 1
+
+    originOffset = pygame.Vector2(
+        x=(startPos[1] * 1),
+        y=(startPos[0] * -1)
+    )
+    for node in mapData:
+        node.rect.centerx += originOffset.x
+        node.rect.centery += originOffset.y
+
+    return (mapData, startPos)
+
+#response = loadMapData(
+#    mapName="testMapMove",
+#    STARTKEY=5,
+#    ITEMKEY=6,
+#    tileSize=10
+#)
+#responseLs = [x for x in response[0]]
+#responseLs.sort(key=lambda tile: tile.rect.centery)
+#for tile in responseLs:
+#    print(tile.rect.center)

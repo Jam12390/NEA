@@ -133,7 +133,7 @@ class Entity(PhysicsObject):
     self.FPS is assigned from a global variable denoting the number of game updates per second
     1/self.FPS is the time since last frame
     '''
-    def update(self, collidableObjects):
+    def update(self, collidableObjects, playerMoved=(0, 0)):
         for key in self._effects.keys():
             self._effects[key][1] -= 1/self.FPS
             if self._effects[key][1] <= 0:
@@ -147,6 +147,6 @@ class Entity(PhysicsObject):
             self._resultantForce = self.recalculateResultantForce(forceMult=self._speed, includedForces=[])
             self._acceleration = self.getAcceleration()
             self.getVelocity()
-            self.displaceObject(collidableObjects=collidableObjects)
+            self.displaceObject(collidableObjects=collidableObjects, playerMoved=playerMoved)
 
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())

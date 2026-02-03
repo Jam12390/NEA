@@ -5,7 +5,9 @@ from OtherClasses import WallObj, Item, ItemUIWindow
 from button import Button
 from dictionaries import *
 
-screenWidth = 800
+import mapLoading
+
+screenWidth = 1600
 screenHeight = screenWidth*0.8 #keep the ratio for w-h at 1:0.8 - could change later
 
 pygame.init()
@@ -35,46 +37,61 @@ player = Player(
     startingWeaponID=0
 )
 
-walls = pygame.sprite.Group()
-walls.add(
-    WallObj(
-        size=pygame.Vector2(500, 100),
-        position=pygame.Vector2(screenWidth/2, (screenHeight/2)+200), #position the floor beneath the player
-        spritePath="Sprites/DefaultSprite.png", #placeholder for actual image path in development
-        pTag="floor",
-        frictionCoef=1
-    )
+mapName = "testMapMove"
+
+mapResponse = mapLoading.loadMapData(
+    mapName="testMapMove",
+    STARTKEY=5,
+    ITEMKEY=6,
+    tileSize=75,
+    baseScreenDimensions=(screenWidth, screenHeight),
+    playerHeight=25
 )
 
+walls = mapResponse[0]
+
+#walls = pygame.sprite.Group()
+#walls.add(
+#    WallObj(
+#        size=pygame.Vector2(500, 100),
+#        position=pygame.Vector2(screenWidth/2, (screenHeight/2)+200), #position the floor beneath the player
+#        spritePath="Sprites/DefaultSprite.png", #placeholder for actual image path in development
+#        pTag="floor",
+#        frictionCoef=1
+#    )
+#)
+
 items = pygame.sprite.Group()
-items.add(
-    Item(
-        pID=0,
-        startingPosition=pygame.Vector2(screenWidth/2 + 150, (screenHeight/2)+175),
-        UIWindow=ItemUIWindow(
-            itemID=0,
-            replaces=allItems[0]["replaces"],
-            pos=(screenWidth/2 + 150, (screenHeight/2) + 50),
-            size=(400, 150)
-        ),
-    )
-)
-items.add(
-    Item(
-        pID=1,
-        startingPosition=pygame.Vector2(screenWidth/2 - 150, (screenHeight/2)+175),
-        UIWindow=ItemUIWindow(
-            itemID=1,
-            replaces=allItems[1]["replaces"],
-            pos=(screenWidth/2 - 150, (screenHeight/2) + 50),
-            size=(400, 150)
-        )
-    )
-)
+#items.add(
+#    Item(
+#        pID=0,
+#        startingPosition=pygame.Vector2(screenWidth/2 + 150, (screenHeight/2)+175),
+#        UIWindow=ItemUIWindow(
+#            itemID=0,
+#            replaces=allItems[0]["replaces"],
+#            pos=(screenWidth/2 + 150, (screenHeight/2) + 50),
+#            size=(400, 150)
+#        ),
+#    )
+#)
+#items.add(
+#    Item(
+#        pID=1,
+#        startingPosition=pygame.Vector2(screenWidth/2 - 150, (screenHeight/2)+175),
+#        UIWindow=ItemUIWindow(
+#            itemID=1,
+#            replaces=allItems[1]["replaces"],
+#            pos=(screenWidth/2 - 150, (screenHeight/2) + 50),
+#            size=(400, 150)
+#        )
+#    )
+#)
 
 mainLoopRunning = True
 
 inventoryOpen = False
+
+previousBlockedMotion = ()
 
 def mainloop():
     global inventoryOpen
@@ -159,18 +176,84 @@ def mainloop():
             screen.fill((0, 0, 0)) #rgb value for black background
 
             #update all objects (this includes collision detection)
-            player.update(collidableObjects=[walls, items])
+            playerMoved = player.update(collidableObjects=[walls, items])
+            #playerMoved //= 1
+            #print(playerMoved)
+            #playerMoved = round(playerMoved)
 
-            #print(player._xForces, player._yForces)
-            print(player._velocity)
+            #print(player._velocity)
+            #print(player._xForces) 
+            #print(player._yForces)
+            #print(player.blockedMotion)
+            #print(player.isGrounded)
+            #print(                                                                                                                                                                                                                                          player._velocity)
+            #print(player.rect.center)
 
             walls.update()
+            #if "l" in player.blockedMotion and not "l" in previousBlockedMotion:
+            #    playerMoved.x = -1
+            #elif "r" in player.blockedMotion and not "r" in previousBlockedMotion:
+            #    playerMoved.x = 1
+            #if "u" in player.blockedMotion and not "u" in previousBlockedMotion:
+            #    playerMoved.y = 1
+            #elif "d" in player.blockedMotion and not "d" in previousBlockedMotion:
+            #    playerMoved.y = -1
+            #previousBlockedMotion = tuple(player.blockedMotion)
+            #if "l" in player.blockedMotion or "r" in player.blockedMotion:
+            #    playerMoved.x = 0
+            #if "u" in player.blockedMotion or "d" in player.blockedMotion:
+            #    playerMoved.y = 0
+            if "u" in player.blockedMotion:
+                playerMoved.y = max(0, playerMoved.y)
+            if "d" in player.blockedMotion:
+                playerMoved.y = min(0, playerMoved.y)
+            if "l" in player.blockedMotion:
+                playerMoved.x = max(0, playerMoved.x)
+            if "r" in player.blockedMotion:
+                playerMoved.x = min(0, playerMoved.x)
+            
+            #print(playerMoved)
+
+            for wall in walls:
+                wall.rect.centerx -= playerMoved.x
+                wall.rect.centery -= playerMoved.y
+            for item in items:
+                item.rect.centerx -= playerMoved.x
+                item.rect.centery -= playerMoved.y
             items.update()
             redraw()
             pygame.display.flip()
 
 def redraw(): #it's important to note that redraw() DOES NOT update() any of the objects it's drawing
     screen.blit(player.image, player.rect)
+    #offsetRect = player.rect.copy()
+    #offsetpos = pygame.math.Vector2()
+    #offsetpos.x = offsetRect.centerx + screenWidth//2
+
+    #### ALEX'S CODE
+    #offsetpos = pygame.math.Vector2()
+    #offsetpos.x = player.rect.centerx - screenWidth//2
+    #offsetpos.y = player.rect.centery - screenHeight//2
+#
+    #offsetRect = player.rect.copy()
+    #offsetRect.center -= offsetpos
+    #screen.blit(player.image,offsetRect)
+#
+    #for wall in walls:
+    #    offsetRect = wall.rect.copy()
+    #    offsetRect.center -= offsetpos
+    #    screen.blit(wall.image,offsetRect)
+    #
+    #for item in items:
+    #    if item.UIWindow.shown:
+    #        offsetRect = item.UIWindow.rect.copy()
+    #        offsetRect.center -= offsetpos
+    #        item.UIWindow.update()
+    #        screen.blit(item.UIWindow.surface, offsetRect)
+    #    offsetRect = item.rect.copy()
+    #    offsetRect.center -= offsetpos
+    #    screen.blit(item.image,offsetRect)
+    ####//END
 
     if player.weapon.currentlyAttacking:
         screen.blit(player.weapon.image, player.weapon.rect)
@@ -179,10 +262,6 @@ def redraw(): #it's important to note that redraw() DOES NOT update() any of the
         screen.blit(sprite.image, sprite.rect)
     walls.draw(screen)
     
-    for item in items:
-        if item.UIWindow.shown:
-            item.UIWindow.update()
-            screen.blit(item.UIWindow.surface, item.UIWindow.rect)
     items.draw(screen)
 
 def inventory():

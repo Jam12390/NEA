@@ -395,6 +395,7 @@ def waypointJump( #(21, 27), (18, 25)
         y=end[0],
         nodeMap=nodeMap
     )
+
     if not (start.isValid() and end.isValid()):
         return False, None
     #traversableByGround = precompile.attemptGroundTraversal(
@@ -416,13 +417,14 @@ def waypointJump( #(21, 27), (18, 25)
         dirEffect = 1
     else:
         dirEffect = -1
-    tempStart = precompile.Point(
-        x=start.x() + dirEffect,
-        y=start.y(),
-        nodeMap=nodeMap
-    )
-    if not tempStart.isEmpty():
-        tempStart = start
+    #tempStart = precompile.Point(
+    #    x=start.x() + dirEffect,
+    #    y=start.y(),
+    #    nodeMap=nodeMap
+    #)
+    #if not tempStart.isEmpty():
+    #    tempStart = start
+    tempStart = start
     topNodes = precompile.getPointsAcrossCurve(
         u=jumpForce,
         g=gravity,
@@ -431,7 +433,7 @@ def waypointJump( #(21, 27), (18, 25)
         nodeMap=nodeMap,
         nodeSep=nodeSep,
         dirEffect=dirEffect,
-        solveForMax=True
+        solveForMax=False#True
     )
     topNodes[0].setY(topNodes[0].y() + dirEffect)
     currentNode = 0
@@ -449,7 +451,7 @@ def waypointJump( #(21, 27), (18, 25)
         )
         currentNode += 1
         exceededRange = currentNode > len(topNodes) - 1
-    if exceededRange:
+    if exceededRange and not foundIntermediatePoint:
         return False, None
     return True, topNodes[currentNode - 1]
     
@@ -472,7 +474,7 @@ def canFallTowardsPoint(
         dirEffect=dirEffect
     ))
     for node in fallNodes:
-        if target.x() == node.x() and target.y() > node.y():
+        if target.x() == node.x() and target.y() >= node.y():
             return True
     return False
 
@@ -563,7 +565,7 @@ endTestSet = [
     (20, 5)
 ]
 
-testGraph = precompile.loadMap(fileName="Prototype2/Pathing/Maps/tightArea.csv")
+testGraph = precompile.loadMap(fileName="Prototype2/Pathing/Maps/testMapMove.csv")
 
 gravityAccel = 9.81 * 15
 nodeSep = 10
@@ -578,15 +580,15 @@ response = precompile.precompileGraph(
     nodeSep=nodeSep,
     gravity=gravityAccel,
     enemyData=enemyData,
-    origin=(13, 18)
+    origin=(18, 6)
 )
 
 debug = True
 t = time.time()
 if debug:
     main(
-        start=(29, 36),
-        end=(34, 33),
+        start=(18, 6),
+        end=(3, 31),
         precompiledData=response,
         nodeMap=testGraph,
         nodeSep=nodeSep,

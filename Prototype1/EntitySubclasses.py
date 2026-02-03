@@ -120,7 +120,7 @@ class Player(Entity):
     
     def wallJump(self):
         self.ignoreAccelFrames = 10 * max(1, self._speed/4)
-
+        print("the wall")
         if "l" in self.blockedMotion:
             self._velocity.x = 50
             self.rect.centerx += 3
@@ -132,7 +132,7 @@ class Player(Entity):
         
         self._velocity.y = -40
         
-    def update(self, collidableObjects):
+    def update(self, collidableObjects) -> pygame.Vector2:
         for key in self._effects.keys():
             self._effects[key][1] -= 1/self.FPS #FPS is set off a global variable to enable smooth motion
             if self._effects[key][1] <= 0:
@@ -155,7 +155,9 @@ class Player(Entity):
                         self._acceleration.x = max(0, self._acceleration.x)
                 self.ignoreAccelFrames -= 1
             self.getVelocity()
-            displacement = self.displaceObject(collidableObjects=collidableObjects)
+            displacement = self.displaceObject(collidableObjects=collidableObjects, isPlayer=True) #playerMoved is irrelevant here => set to (0, 0)
+            print(displacement)
+            #self.rect.center = (round(self.rect.centerx - displacement.x), round(self.rect.centery - displacement.y)) 
 
             if round(displacement.x) != 0: #if we are actually registering movement
                 if self._velocity.x < 0: #then allow self.facing to change
@@ -173,3 +175,5 @@ class Player(Entity):
             self.weapon.update()
 
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())
+
+            return displacement #playerMoved

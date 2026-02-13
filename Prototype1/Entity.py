@@ -1,6 +1,6 @@
 import pygame
 import operator
-from PhysicsObject import PhysicsObject
+from PhysicsObject2 import PhysicsObject #MARK FOR POTENTIAL DELETION
 from dictionaries import allEffects
 
 operators = {

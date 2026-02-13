@@ -156,6 +156,7 @@ class Player(Entity):
                 self.ignoreAccelFrames -= 1
             self.getVelocity()
             displacement = self.displaceObject(collidableObjects=collidableObjects, isPlayer=True) #playerMoved is irrelevant here => set to (0, 0)
+            #self.absoluteCoordinate += displacement
             #print(displacement)
             #self.rect.center = (round(self.rect.centerx - displacement.x), round(self.rect.centery - displacement.y)) 
 

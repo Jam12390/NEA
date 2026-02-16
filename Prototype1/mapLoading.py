@@ -28,11 +28,9 @@ def loadMapData(
     initialOffset = [(baseScreenDimensions[0] - tileSize) / 2, (baseScreenDimensions[1] + tileSize) / 2] #(baseScreenDimensions[0] + tileSize / 2, baseScreenDimensions[1] + tileSize / 2) [x, y]
     initialOffset[1] -= (tileSize - playerHeight)
 
-    INVALIDKEYS = [STARTKEY, ITEMKEY, -1]
-
     for row in segmentedData:
         currentNodePosition[1] = 0
-        for column in row: #column is an int
+        for column in row:
             if not int(column) == -1 and not int(column) == STARTKEY and not int(column) == ITEMKEY: #if tile not empty
                 try:
                     sprite = tileData[column][0]
@@ -40,30 +38,6 @@ def loadMapData(
                 except:
                     sprite = tileData[0][0]
                     frictionCoef = tileData[0][1]
-                lWall = row[max(0, currentNodePosition[1] - 1)]
-                rWall = row[min(len(row) - 1, currentNodePosition[1] + 1)]
-                uWall = segmentedData[max(0, currentNodePosition[0] - 1)][currentNodePosition[1]]
-                dWall = segmentedData[min(len(segmentedData) - 1, currentNodePosition[0] + 1)][currentNodePosition[1]]
-                lWallPresent = not int(lWall) in INVALIDKEYS#lWall != STARTKEY and lWall != ITEMKEY and int(lWall) != -1
-                rWallPresent = not int(rWall) in INVALIDKEYS#rWall != STARTKEY and rWall != ITEMKEY and int(rWall) != -1
-                roofPresent = not int(uWall) in INVALIDKEYS
-                floorPresent = not int(dWall) in INVALIDKEYS
-                sandwichWall = lWallPresent and rWallPresent
-                lCorner = floorPresent and lWallPresent and (not rWallPresent) and (not roofPresent)
-                rCorner = floorPresent and rWallPresent and not lWallPresent and not roofPresent
-                roof = not floorPresent
-                #tags = ["floor"]
-                tags = []
-                if roof:
-                    tags = ["roof", "wall"]
-                elif lCorner:
-                    tags = ["lCorner", "wall"]
-                elif rCorner:
-                    tags = ["rCorner", "wall"]
-                elif sandwichWall:
-                    tags = ["floor"]
-                else:
-                    tags = ["wall"]
                 mapData.add(OtherClasses.WallObj(
                     size= pygame.Vector2(tileSize, tileSize),
                     position= pygame.Vector2(
@@ -72,7 +46,7 @@ def loadMapData(
                     ),
                     frictionCoef=frictionCoef,
                     spritePath=sprite,
-                    pTags=tags
+                    pTag="floor"
                 ))
             elif int(column) == STARTKEY:
                 startPos = (
@@ -87,21 +61,18 @@ def loadMapData(
         y=(startPos[0] * -1)
     )
     for node in mapData:
-        node.absoluteCoordinate.x += originOffset.x
-        node.absoluteCoordinate.y += originOffset.y
+        node.rect.centerx += originOffset.x
+        node.rect.centery += originOffset.y
 
     return (mapData, startPos)
 
-response = loadMapData(
-    mapName="testMapMove",
-    baseScreenDimensions=(1600, 1280),
-    playerHeight=50,
-    STARTKEY=5,
-    ITEMKEY=6,
-    tileSize=10
-)
-responseLs = [x for x in response[0]]
-responseLs.sort(key=lambda tile: tile.absoluteCoordinate.y)
-for tile in responseLs:
-    print(tile.absoluteCoordinate)
-    #print(tile.tags)
+#response = loadMapData(
+#    mapName="testMapMove",
+#    STARTKEY=5,
+#    ITEMKEY=6,
+#    tileSize=10
+#)
+#responseLs = [x for x in response[0]]
+#responseLs.sort(key=lambda tile: tile.rect.centery)
+#for tile in responseLs:
+#    print(tile.rect.center)

@@ -15,12 +15,10 @@ class PhysicsObject(pygame.sprite.Sprite):
     ):
         super().__init__()
         self.FPS = FPS
-        self.updateDelay = 5 #frames between physics
-        self.framesSinceLastUpdate = 0
         self.size = pSize
         self.image = pygame.transform.smoothscale(pygame.image.load(spritePath), (pSize.x, pSize.y))
-        self.absoluteCoordinate = startingPosition
         self.rect = pygame.Surface.get_rect(self.image)
+        self.rect.center = (round(startingPosition.x), round(startingPosition.y))
         self.simulated = True
         self.tag = pTag
         self._mass = pMass
@@ -34,10 +32,6 @@ class PhysicsObject(pygame.sprite.Sprite):
         self.blockedMotion = []
         self.isGrounded = False
         self.shouldReturnDisplacement = False
-
-        self.previousCollisionState = {
-
-        }
     
     def recalculateResultantForce(self, forceMult: float = 1, includedForces: list = []):
         resXForce = 0
@@ -80,11 +74,6 @@ class PhysicsObject(pygame.sprite.Sprite):
             yVelocity = self._velocity.y + self._acceleration.y*(1/self.FPS)
             yVelocity = max(self._velocityCap.y * -1, min(yVelocity, self._velocityCap.y)) #same with yVelocity
         
-        if xVelocity*3 in range(-1, 1):
-            xVelocity = 0
-        if yVelocity*3 in range(-1, 1):
-            yVelocity = 0
-
         self._velocity = pygame.Vector2(xVelocity, yVelocity)
 
     def getVelocityValue(self):
@@ -208,32 +197,24 @@ class PhysicsObject(pygame.sprite.Sprite):
         collidingDirections = []
 
         frictionCoefs = {}
-        collidingObjects = {
-            "l": None,
-            "r": None,
-            "u": None,
-            "d": None
-        }
 
         totalDiff = [displacement.x, displacement.y]
+        #totalDiff = [0, 0]
 
         if not isPlayer:
-            self.absoluteCoordinate = pygame.Vector2(self.absoluteCoordinate.x + displacement.x, self.absoluteCoordinate.y + displacement.y) #reverse this on the player object at the end..?
+            self.rect.center = (self.rect.centerx + displacement.x, self.rect.centery + displacement.y) #reverse this on the player object at the end..?
         originalDisplacement = tuple([displacement.x, displacement.y])
         originalDisplacement = pygame.Vector2(x=originalDisplacement[0], y=originalDisplacement[1])
 
         for group in collidableObjects:
             for collidable in group:
-                if "item" in collidable.tags and self.tag == "player":
+                if collidable.tag == "item" and self.tag == "player":
                     if pygame.Rect.colliderect(self.rect, collidable.rect): #collidable is an item in the scene
                         collidable.UIWindow.shown = True
                     else:
                         collidable.UIWindow.shown = False
-                
-                #print(collidable.absoluteCoordinate)
-                #print(self.absoluteCoordinate)
 
-                if len(set(collidable.tags) & set(["wall", "floor"])) > 0 and collidable.simulated: #thinking ahead for when objects are de-rendered to improve performance - source: https://www.digitalocean.com/community/tutorials/how-to-compare-two-lists-in-python
+                if collidable.tag in ["wall", "floor"] and collidable.simulated: #thinking ahead for when objects are de-rendered to improve performance
                     #bottom left corner
                     renderedDifference = [0, 0]
 
@@ -241,7 +222,7 @@ class PhysicsObject(pygame.sprite.Sprite):
                         xDiff = abs(self.rect.left - collidable.rect.right)
                         yDiff = abs(self.rect.bottom - collidable.rect.top)
 
-                        if xDiff < yDiff and self._velocity.x < 0 and "wall" in collidable.tags:
+                        if xDiff < yDiff and self._velocity.x < 0:
                             renderedDifference[0] += 1
                             if not isPlayer:
                                 self.rect.left = collidable.rect.right
@@ -249,8 +230,7 @@ class PhysicsObject(pygame.sprite.Sprite):
                                 totalDiff[0] -= xDiff
                             collidingDirections.append("l")
                             frictionCoefs["l"] = collidable.frictionCoef
-                            collidingObjects["l"] = collidable
-                        elif xDiff > yDiff and self._velocity.y > 0 and len(set(collidable.tags) & set({"floor", "lCorner", "rCorner"})) > 0:
+                        elif xDiff > yDiff and self._velocity.y > 0:
                             renderedDifference[1] += 1
                             if not isPlayer:
                                 self.rect.bottom = collidable.rect.top
@@ -258,23 +238,21 @@ class PhysicsObject(pygame.sprite.Sprite):
                                 totalDiff[1] += yDiff
                             collidingDirections.append("d")
                             frictionCoefs["d"] = collidable.frictionCoef
-                            collidingObjects["d"] = collidable
 
                     #top left corner
-                    if pygame.Rect.collidepoint(collidable.rect, self.rect.topleft): #do tag checks here
+                    if pygame.Rect.collidepoint(collidable.rect, self.rect.topleft):
                         xDiff = abs(self.rect.left - collidable.rect.right)
                         yDiff = abs(self.rect.top - collidable.rect.bottom)
 
-                        if xDiff < yDiff and self._velocity.x < 0 and "wall" in collidable.tags:
+                        if xDiff < yDiff and self._velocity.x < 0:
                             renderedDifference[0] += 1
                             if not isPlayer:
                                 self.rect.left = collidable.rect.right
                             else:
                                 totalDiff[0] -= xDiff
                             collidingDirections.append("l")
-                            collidingObjects["l"] = collidable
                             frictionCoefs["l"] = collidable.frictionCoef
-                        elif xDiff > yDiff and self._velocity.y < 0 and "roof" in collidable.tags:
+                        elif xDiff > yDiff and self._velocity.y < 0:
                             renderedDifference[1] += 1
                             if not isPlayer:
                                 self.rect.top = collidable.rect.bottom
@@ -282,14 +260,13 @@ class PhysicsObject(pygame.sprite.Sprite):
                                 totalDiff[1] -= yDiff
                             collidingDirections.append("u")
                             frictionCoefs["u"] = collidable.frictionCoef
-                            collidingObjects["u"] = collidable
 
                     #top right corner
                     if pygame.Rect.collidepoint(collidable.rect, self.rect.topright):
                         xDiff = abs(self.rect.right - collidable.rect.left)
                         yDiff = abs(self.rect.top - collidable.rect.bottom)
 
-                        if xDiff < yDiff and self._velocity.x > 0 and "wall" in collidable.tags:
+                        if xDiff < yDiff and self._velocity.x > 0:
                             renderedDifference[0] += 1
                             if not isPlayer:
                                 self.rect.right = collidable.rect.left
@@ -297,8 +274,7 @@ class PhysicsObject(pygame.sprite.Sprite):
                                 totalDiff[0] += xDiff
                             collidingDirections.append("r")
                             frictionCoefs["r"] = collidable.frictionCoef
-                            collidingObjects["r"] = collidable
-                        elif xDiff > yDiff and self._velocity.y < 0 and "roof" in collidable.tags:
+                        elif xDiff > yDiff and self._velocity.y < 0:
                             renderedDifference[1] += 1
                             if not isPlayer:
                                 self.rect.top = collidable.rect.bottom
@@ -306,14 +282,13 @@ class PhysicsObject(pygame.sprite.Sprite):
                                 totalDiff[1] -= yDiff
                             collidingDirections.append("u")
                             frictionCoefs["u"] = collidable.frictionCoef
-                            collidingObjects["u"] = collidable
 
                     #bottom right corner
                     if pygame.Rect.collidepoint(collidable.rect, self.rect.bottomright):
                         xDiff = abs(self.rect.right - collidable.rect.left)
                         yDiff = abs(self.rect.bottom - collidable.rect.top)
 
-                        if xDiff < yDiff and self._velocity.x > 0 and "wall" in collidable.tags:
+                        if xDiff < yDiff and self._velocity.x > 0:
                             renderedDifference[0] += 1
                             if not isPlayer:
                                 self.rect.right = collidable.rect.left
@@ -321,8 +296,7 @@ class PhysicsObject(pygame.sprite.Sprite):
                                 totalDiff[0] += xDiff
                             collidingDirections.append("r")
                             frictionCoefs["r"] = collidable.frictionCoef
-                            collidingObjects["r"] = collidable
-                        elif xDiff > yDiff and self._velocity.y > 0 and len(set(collidable.tags) & set({"floor", "lCorner", "rCorner"})) > 0:
+                        elif xDiff > yDiff and self._velocity.y > 0:
                             renderedDifference[1] += 1
                             if not isPlayer:
                                 self.rect.bottom = collidable.rect.top
@@ -330,16 +304,15 @@ class PhysicsObject(pygame.sprite.Sprite):
                                 totalDiff[1] += yDiff
                             collidingDirections.append("d")
                             frictionCoefs["d"] = collidable.frictionCoef
-                            collidingObjects["d"] = collidable
                     
-
-
                     #if isPlayer and renderedDifference[0] > 1:
                     #    totalDiff[0] /= 2
                     #if isPlayer and renderedDifference[1] > 1:
                     #    totalDiff[1] /= 2
                     #totalDiff[0] *= 2
                     #totalDiff[1] *= 2
+                    
+                    collisionTolerance = 5
                     '''
                     pygame.Rect.collidepoint doesn't return true if points are bordering on a rect
                     due to this, for frame 1 after floor collision, although the object is technically grounded, renderCollision doesn't return true since the points are "bordering"
@@ -353,48 +326,21 @@ class PhysicsObject(pygame.sprite.Sprite):
                     #    self.removeForce(axis="y", ref="UserInputDown")
                     #else:
                     #    self.isGrounded = False
-
-        #if collidingObjects["u"] != None:
-        #    if "rCorner" in collidingObjects["u"].tags or "lCorner" in collidingObjects["u"].tags:#len({"rCorner", "lCorner"} & set(collidingObjects["u"].tags)) > 0:
-        #        collidingObjects["u"] = None
-        #        collidingDirections.remove("u")
-
         if "d" in collidingDirections:
             self.isGrounded = True
             self.removeForce(axis="y", ref="UserInputDown")
-            if self.rect.bottom > collidingObjects["d"].rect.top:
-                totalDiff[0] -= 3
         else:
             self.isGrounded = False
         for direction in collidingDirections:
             if not direction in self.blockedMotion:
                 self.blockedMotion.append(direction)
-
-        for x in collidingObjects.keys():
-            if collidingObjects[x] != None:
-                print(f"{x} - {collidingObjects[x].tags}")
-        print("-------------------")
-
-        if "u" in self.blockedMotion:
-            if "roof" in collidingObjects["u"].tags:# or "wall" in collidingObjects["u"].tags:
-                self._velocity.y = max(0, self._velocity.y)
-        elif "d" in self.blockedMotion:
-            self._velocity.y = min(0, self._velocity.y)
-        if "l" in self.blockedMotion:
-            #if len({"rCorner", "sandwich"} & set(collidingObjects["l"].tags)) == 0 and not "d" in self.blockedMotion:
-            if not("rCorner" in collidingObjects["l"].tags or "sandwich" in collidingObjects["l"].tags):
-                self._velocity.x = max(0, self._velocity.x)
-        elif "r" in self.blockedMotion:
-            #if len({"lCorner", "sandwich"} & set(collidingObjects["r"].tags)) == 0 and not "d" in self.blockedMotion:
-            if not("lCorner" in collidingObjects["r"].tags or "sandwich" in collidingObjects["r"].tags):
-                self._velocity.x = min(0, self._velocity.x)
         self.__updateFriction(coef=frictionCoefs)
 
-        #if isPlayer:
-        #    self.absoluteCoordinate = (self.absoluteCoordinate.x - originalDisplacement.x, self.absoluteCoordinate.y - originalDisplacement.y)
-        #    return pygame.Vector2(totalDiff[0], totalDiff[1])
-        #else:
-        #    return None
+        if isPlayer:
+            self.rect.center = (self.rect.centerx - originalDisplacement.x, self.rect.centery - originalDisplacement.y)
+            return pygame.Vector2(totalDiff[0], totalDiff[1])
+        else:
+            return None
     
     def camRenderCollisions(
             self,
@@ -600,13 +546,10 @@ class PhysicsObject(pygame.sprite.Sprite):
         self.kill()
 
     def update(self, collidableObjects, playerMoved=(0, 0)):
-        if self.simulated and self.framesSinceLastUpdate / self.updateDelay > 1:
+        if self.simulated:
             self._resultantForce = self.recalculateResultantForce() #methods are called in dependency order i.e. ResForce is required for getAcceleration() which is required for getVelocity(), etc.
             self._acceleration = self.getAcceleration()
             self.getVelocity()
             self.displaceObject(collidableObjects=collidableObjects, playerMoved=playerMoved)
 
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())
-        else:
-            self.framesSinceLastUpdate += 1
-            self.displaceObject(collidableObjects=collidableObjects, playerMoved=playerMoved)

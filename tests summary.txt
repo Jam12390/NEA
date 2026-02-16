@@ -179,8 +179,6 @@ Camera:
 
 	Camera now sometimes moves slowly even after player stops moving
 	fuck knows why this happens
-		- playerMoved variable not set to 0 when player displacement == 0 (or is negligible) (found through later implementation of self.absoluteCoordinate for deloading)
-		fix: CLAMP
 
 Movement:
 	Walljumping sometimes doesn't work
@@ -202,9 +200,7 @@ Movement:
 		+++godsaveme repeated function calls in the physics engine causes a performance decrease shockingly who could've seen this coming??????
 			- Caused from 1 pixel error from camera goddammit + general python performance being shit
 			- Implement accuracy for physics which calls for physics updates every x seconds for each physicsObject being rendered
-
-			- Deload (use self.simulated variable)
-
+	
 	All above errors caused by initial camera error
 	Attempted Fixes:
 		- //= 1: Solves error however causes 1 pixel gap
@@ -213,29 +209,7 @@ Movement:
             playerMoved.x = 0
         - if "u" in player.blockedMotion or "d" in player.blockedMotion:
             playerMoved.y = 0: Same effect as //= 1
-		- tell me why i didnt end up trying to clamp it the *normal* way???????
-		i need to use my brain a touch more dont i?
+	
 
 	+player is slightly offset each collision
 		- maybe add a 2 pixel tolerance to each direction for blockedMotion?
-	
-	player randomly gets stuck on the floor
-		- Assumed cause: when loading the map, each tile is its own square, meaning it detects corners as collisions, stopping the player
-		- debug: print tags of objects the player is "colliding" with
-			- no problems with tagging objects
-			- i should just stop trying to make things look nice (tried using "set" syntax to compare lists, caused error, whats new?)
-		- fixes: add additional tags to wall objects stating if they're a corner tile or inbetween 2 tiles which renderCollision can use
-	player can stand on wall
-		- Cause: wall tiles are given the "floor" tag meaning *technically* the player could register as standing on it.
-		- fixing: charade of adding a bunch of tags for every possible scenario (i.e. floor, lCorner, rCorner, wall, roof) and checking collision against it
-
-	player gets stuck on floor (again)
-		- Cause: for some reason the player gets *slightly* stuck in the floor each collision (why???)
-		- Fix: move the player 1 pixel up every time they hit the floor (unnoticable externally and simple)
-	
-	crouching is now weird
-		- removed crouching
-	
-Implementing pathing:
-	player's absoluteCoordinate changes even when the player is stationary
-		- cause: 

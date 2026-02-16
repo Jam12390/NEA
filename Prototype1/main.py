@@ -1,9 +1,6 @@
 import pygame
 import sys
-
-sys.path.append("/home/james/Documents/NEA/Prototype2")
-#from EntitySubclasses import Player
-from player2 import Player
+from EntitySubclasses import Player
 from OtherClasses import WallObj, Item, ItemUIWindow
 from button import Button
 from dictionaries import *
@@ -22,24 +19,10 @@ paused = False
 
 FPS = 60
 
-mapName = "testMapMove"
-TILESIZE = 75
-
-mapResponse = mapLoading.loadMapData(
-    mapName=mapName,
-    STARTKEY=5,
-    ITEMKEY=6,
-    tileSize=TILESIZE,
-    baseScreenDimensions=(screenWidth, screenHeight),
-    playerHeight=25
-)
-
-walls = mapResponse[0]
-
 #player = pygame.sprite.GroupSingle()
 player = Player(
     FPS=FPS,
-    jumpForce=175, #pixels/second
+    jumpForce=75, #pixels/second
     maxHP=100,
     defense=5,
     speed=1,
@@ -50,23 +33,22 @@ player = Player(
     pMass=5,
     startingPosition=pygame.math.Vector2(screenWidth/2, screenHeight/2),
     startingVelocity=pygame.math.Vector2(0, 0),
-    pVelocityCap=pygame.math.Vector2(100, 100),
+    pVelocityCap=pygame.math.Vector2(50, 50),
     startingWeaponID=0
 )
 
-#mapName = "testMapMove"
-#TILESIZE = 75
-#
-#mapResponse = mapLoading.loadMapData(
-#    mapName=mapName,
-#    STARTKEY=5,
-#    ITEMKEY=6,
-#    tileSize=TILESIZE,
-#    baseScreenDimensions=(screenWidth, screenHeight),
-#    playerHeight=25
-#)
-#
-#walls = mapResponse[0]
+mapName = "testMapMove"
+
+mapResponse = mapLoading.loadMapData(
+    mapName="testMapMove",
+    STARTKEY=5,
+    ITEMKEY=6,
+    tileSize=75,
+    baseScreenDimensions=(screenWidth, screenHeight),
+    playerHeight=25
+)
+
+walls = mapResponse[0]
 
 #walls = pygame.sprite.Group()
 #walls.add(
@@ -174,11 +156,11 @@ def mainloop():
                         player.fastFalling = False #stop fast falling
                         player.modifySpeedCap(axis="y", magnitude=-15) #change speed cap back
                     player.removeForce(axis="y", ref="UserInputDown")
-                #    if not player.crouched: #if we're not crouched
-                #        player.crouch() #crouch
-                #elif not player.isGrounded:
-                #    if player.crouched: #if we're crouched
-                #        player.uncrouch() #uncrouch
+                    if not player.crouched: #if we're not crouched
+                        player.crouch() #crouch
+                elif not player.isGrounded:
+                    if player.crouched: #if we're crouched
+                        player.uncrouch() #uncrouch
             else: #not holding S
                 player.removeForce(axis="y", ref="UserInputDown") #remove downwards force
                 if player.crouched:
@@ -195,10 +177,6 @@ def mainloop():
 
             #update all objects (this includes collision detection)
             playerMoved = player.update(collidableObjects=[walls, items])
-            if -0.25 < playerMoved.x and playerMoved.x < 0.25:
-                playerMoved.x = 0
-            if -0.25 < playerMoved.y and playerMoved.y < 0.25:
-                playerMoved.y = 0
             #playerMoved //= 1
             #print(playerMoved)
             #playerMoved = round(playerMoved)
@@ -235,66 +213,24 @@ def mainloop():
                 playerMoved.x = min(0, playerMoved.x)
             
             #print(playerMoved)
-            '''
-            note to self:
-            maybe add absolute coordinates to each object
-            and offset that instead with playerMoved each frame
-            drawing that instead
-            oh!
-            i could also use that for my simulated attribute!
-            ....wait a minute
-            ive jsut described alex's method havent i?
-            '''
 
-            #print(player.absoluteCoordinate)
-
-
-            ###MY (bad) CODE
             for wall in walls:
-                wall.absoluteCoordinate.x -= playerMoved.x
-                wall.absoluteCoordinate.y -= playerMoved.y
-                #wall.rect.center = wall.absoluteCoordinate
                 wall.rect.centerx -= playerMoved.x
                 wall.rect.centery -= playerMoved.y
-                #print(wall.absoluteCoordinate)
-                print(wall.rect.center)
-                #wall.rect.centerx -= playerMoved.x
-                #wall.rect.centery -= playerMoved.y
             for item in items:
-                item.absoluteCoordinate.x -= playerMoved.x
-                item.absoluteCoordinate.y -= playerMoved.y
-                item.rect.center = item.absoluteCoordinate
-                #item.rect.centerx -= playerMoved.x
-                #item.rect.centery -= playerMoved.y
-            items.upda te()
-            ###END
+                item.rect.centerx -= playerMoved.x
+                item.rect.centery -= playerMoved.y
+            items.update()
             redraw()
             pygame.display.flip()
 
 def redraw(): #it's important to note that redraw() DOES NOT update() any of the objects it's drawing
-    ####MY CODE
-    renderDistance = 10 #in tiles
-
-    player.rect.center = (screenWidth/2, screenHeight/2)
     screen.blit(player.image, player.rect)
-
-    for sprite in walls:
-        #if sprite.absoluteCoordinate.x in range(-1 - TILESIZE, TILESIZE + 1):
-        screen.blit(sprite.image, sprite.absoluteCoordinate)
-    walls.draw(screen)
-    
-    items.draw(screen)
-    ####END
-
     #offsetRect = player.rect.copy()
     #offsetpos = pygame.math.Vector2()
     #offsetpos.x = offsetRect.centerx + screenWidth//2
 
     #### ALEX'S CODE
-    ##Note: thisll take some tweaking but should work fine
-    ##Note after the node: ffs alex your code locks the player in a box.
-    ##im actually impressed at how youve done that
-    ##fucks sake
     #offsetpos = pygame.math.Vector2()
     #offsetpos.x = player.rect.centerx - screenWidth//2
     #offsetpos.y = player.rect.centery - screenHeight//2
@@ -321,6 +257,12 @@ def redraw(): #it's important to note that redraw() DOES NOT update() any of the
 
     if player.weapon.currentlyAttacking:
         screen.blit(player.weapon.image, player.weapon.rect)
+
+    for sprite in walls:
+        screen.blit(sprite.image, sprite.rect)
+    walls.draw(screen)
+    
+    items.draw(screen)
 
 def inventory():
     global inventoryOpen

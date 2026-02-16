@@ -22,10 +22,10 @@ FPS = 60
 #player = pygame.sprite.GroupSingle()
 player = Player(
     FPS=FPS,
-    jumpForce=75, #pixels/second
+    jumpForce=150, #pixels/second
     maxHP=100,
     defense=5,
-    speed=1,
+    speed=5,
     pAttackCooldown=0.75,
     pSize=pygame.math.Vector2(50, 50),
     spritePath="Sprites/DefaultSprite.png", #path to the player's sprite goes here
@@ -33,7 +33,7 @@ player = Player(
     pMass=5,
     startingPosition=pygame.math.Vector2(screenWidth/2, screenHeight/2),
     startingVelocity=pygame.math.Vector2(0, 0),
-    pVelocityCap=pygame.math.Vector2(50, 50),
+    pVelocityCap=pygame.math.Vector2(100, 100),
     startingWeaponID=0
 )
 
@@ -177,6 +177,10 @@ def mainloop():
 
             #update all objects (this includes collision detection)
             playerMoved = player.update(collidableObjects=[walls, items])
+            if -0.25 < playerMoved.x and playerMoved.x < 0.25:
+                playerMoved.x = 0
+            if -0.25 < playerMoved.y and playerMoved.y < 0.25:
+                playerMoved.y = 0
             #playerMoved //= 1
             #print(playerMoved)
             #playerMoved = round(playerMoved)
@@ -225,10 +229,23 @@ def mainloop():
             pygame.display.flip()
 
 def redraw(): #it's important to note that redraw() DOES NOT update() any of the objects it's drawing
-    screen.blit(player.image, player.rect)
+    #screen.blit(player.image, player.rect)
     #offsetRect = player.rect.copy()
     #offsetpos = pygame.math.Vector2()
     #offsetpos.x = offsetRect.centerx + screenWidth//2
+
+    #######REVERT TAG
+    player.rect.center = (screenWidth/2, screenHeight/2)
+    screen.blit(player.image, player.rect)
+
+    #for sprite in walls:
+    #    #if sprite.absoluteCoordinate.x in range(-1 - TILESIZE, TILESIZE + 1):
+    #    screen.blit(sprite.image, sprite.absoluteCoordinate)
+    #walls.draw(screen)
+    #
+    #items.draw(screen)
+    ########END
+
 
     #### ALEX'S CODE
     #offsetpos = pygame.math.Vector2()

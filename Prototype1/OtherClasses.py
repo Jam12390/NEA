@@ -42,13 +42,20 @@ class WallObj(pygame.sprite.Sprite):
             position: pygame.Vector2,
             frictionCoef: tuple[int, int] = (0,75, 0,25), #(x, y)
             spritePath: str = "Sprites/DefaultSprite.png",
-            pTag: str = "wall"
+            #######REVERT A
+            pTags: list[str] = ["wall"]
+            #END
         ):
         super().__init__()
         self.image = pygame.transform.smoothscale(pygame.image.load(spritePath), (round(size.x), round(size.y)))
-        self.tag = pTag
+        #revert a
+        self.tags = pTags
+        #end
         self.frictionCoef = frictionCoef
         self.simulated = True
+        #revert
+        self.absoluteCoordinate = position
+        #end
         self.rect = pygame.Surface.get_rect(self.image)
         self.rect.center = (round(position.x), round(position.y))
     

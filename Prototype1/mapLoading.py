@@ -38,6 +38,36 @@ def loadMapData(
                 except:
                     sprite = tileData[0][0]
                     frictionCoef = tileData[0][1]
+
+                ########REVERT A
+                INVALIDKEYS = [STARTKEY, ITEMKEY, -1]
+
+                lWall = row[max(0, currentNodePosition[1] - 1)]
+                rWall = row[min(len(row) - 1, currentNodePosition[1] + 1)]
+                uWall = segmentedData[max(0, currentNodePosition[0] - 1)][currentNodePosition[1]]
+                dWall = segmentedData[min(len(segmentedData) - 1, currentNodePosition[0] + 1)][currentNodePosition[1]]
+                lWallPresent = not int(lWall) in INVALIDKEYS#lWall != STARTKEY and lWall != ITEMKEY and int(lWall) != -1
+                rWallPresent = not int(rWall) in INVALIDKEYS#rWall != STARTKEY and rWall != ITEMKEY and int(rWall) != -1
+                roofPresent = not int(uWall) in INVALIDKEYS
+                floorPresent = not int(dWall) in INVALIDKEYS
+                sandwichWall = lWallPresent and rWallPresent
+                lCorner = floorPresent and lWallPresent and (not rWallPresent) and (not roofPresent)
+                rCorner = floorPresent and rWallPresent and not lWallPresent and not roofPresent
+                roof = not floorPresent
+                #tags = ["floor"]
+                tags = []
+                if roof:
+                    tags = ["roof", "wall"]
+                elif lCorner:
+                    tags = ["lCorner", "wall"]
+                elif rCorner:
+                    tags = ["rCorner", "wall"]
+                elif sandwichWall:
+                    tags = ["floor"]
+                else:
+                    tags = ["wall"]
+                #####END
+
                 mapData.add(OtherClasses.WallObj(
                     size= pygame.Vector2(tileSize, tileSize),
                     position= pygame.Vector2(
@@ -46,7 +76,10 @@ def loadMapData(
                     ),
                     frictionCoef=frictionCoef,
                     spritePath=sprite,
-                    pTag="floor"
+
+                    ########REVERT A
+                    pTags=tags
+                    #####END
                 ))
             elif int(column) == STARTKEY:
                 startPos = (
@@ -66,13 +99,15 @@ def loadMapData(
 
     return (mapData, startPos)
 
-#response = loadMapData(
-#    mapName="testMapMove",
-#    STARTKEY=5,
-#    ITEMKEY=6,
-#    tileSize=10
-#)
-#responseLs = [x for x in response[0]]
-#responseLs.sort(key=lambda tile: tile.rect.centery)
-#for tile in responseLs:
-#    print(tile.rect.center)
+response = loadMapData(
+    mapName="testMapMove",
+    baseScreenDimensions=(1600, 1280),
+    STARTKEY=5,
+    ITEMKEY=6,
+    tileSize=10,
+    playerHeight=25
+)
+responseLs = [x for x in response[0]]
+responseLs.sort(key=lambda tile: tile.rect.centery)
+for tile in responseLs:
+    print(tile.tags)

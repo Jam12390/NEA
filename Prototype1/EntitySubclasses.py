@@ -44,6 +44,11 @@ class Player(Entity):
         self.weapon = Weapon(FPS=FPS, pID=startingWeaponID, startingPosition=pygame.Vector2(round(self.rect.centerx), round(self.rect.centery)))
         self.facing = "r"
         self.ignoreAccelFrames = 0
+
+        self.currentNode = (0, 0)#(
+            #((self.absoluteCoordinate.x) // 75) - 7,
+            #(self.absoluteCoordinate.y) // 75,
+        #)
     
     def pickupItem(self, ID: int, replaces: str):
         newData = None
@@ -120,7 +125,7 @@ class Player(Entity):
     
     def wallJump(self):
         self.ignoreAccelFrames = 10 * max(1, self._speed/4)
-        print("the wall")
+        #print("the wall")
         if "l" in self.blockedMotion:
             self._velocity.x = 50
             self.rect.centerx += 3
@@ -156,7 +161,7 @@ class Player(Entity):
                 self.ignoreAccelFrames -= 1
             self.getVelocity()
             displacement = self.displaceObject(collidableObjects=collidableObjects, isPlayer=True) #playerMoved is irrelevant here => set to (0, 0)
-            print(displacement)
+            #print(displacement)
             #self.rect.center = (round(self.rect.centerx - displacement.x), round(self.rect.centery - displacement.y)) 
 
             if round(displacement.x) != 0: #if we are actually registering movement

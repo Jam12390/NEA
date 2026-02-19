@@ -12,10 +12,10 @@ def loadMapData(
         tileSize: int,
         baseScreenDimensions: tuple[int, int],
         playerHeight: int,
-        tileData: dict[int, tuple[str, float]] = {0: ("Sprites/DefaultSprite.png", (0.75, 0.25))}, # ID: (spritePath, frictionCoef => (x, y))
+        tileData: dict[int, tuple[str, float]] = {0: ("Sprites/DefaultSprite.png", (1.5, 0.5))}, # ID: (spritePath, frictionCoef => (x, y))
 ) -> tuple[pygame.sprite.Group, tuple[int, int]]:
     mapData = pygame.sprite.Group()
-    with open(f"Prototype2/Pathing/Maps/{mapName}.csv", "r") as map:
+    with open(f"Prototype1/transfer/Maps/{mapName}.csv", "r") as map:
         data = csv.reader(map, delimiter=" ", quotechar="|")
         segmentedData = []
         for row in data:
@@ -25,7 +25,7 @@ def loadMapData(
 
     currentNodePosition = [0, 0] #shouldn't be extended but needs to be modifiable => [y, x]
     startPos = (0, 0)
-    initialOffset = [(baseScreenDimensions[0] - tileSize) / 2, (baseScreenDimensions[1] + tileSize) / 2] #(baseScreenDimensions[0] + tileSize / 2, baseScreenDimensions[1] + tileSize / 2) [x, y]
+    initialOffset = [(baseScreenDimensions[0]) / 2, (baseScreenDimensions[1] + tileSize) / 2] #(baseScreenDimensions[0] + tileSize / 2, baseScreenDimensions[1] + tileSize / 2) [x, y] -  - tileSize  + tileSize
     initialOffset[1] -= (tileSize - playerHeight)
 
     for row in segmentedData:
@@ -54,7 +54,7 @@ def loadMapData(
                 lCorner = floorPresent and lWallPresent and (not rWallPresent) and (not roofPresent)
                 rCorner = floorPresent and rWallPresent and not lWallPresent and not roofPresent
                 roof = not floorPresent
-                #tags = ["floor"]
+                #tags = ["floor"]gb
                 tags = []
                 if roof:
                     tags = ["roof", "wall"]
@@ -63,7 +63,7 @@ def loadMapData(
                 elif rCorner:
                     tags = ["rCorner", "wall"]
                 elif sandwichWall:
-                    tags = ["floor"]
+                    tags = ["floor", "wall"]
                 else:
                     tags = ["wall"]
                 #####END
@@ -71,7 +71,7 @@ def loadMapData(
                 mapData.add(OtherClasses.WallObj(
                     size= pygame.Vector2(tileSize, tileSize),
                     position= pygame.Vector2(
-                        x=(currentNodePosition[1] * tileSize),
+                        x=(currentNodePosition[1] * tileSize) - tileSize//2,# + (1 if tileSize%2 > 0 else 0),
                         y=(currentNodePosition[0] * tileSize)
                     ),
                     frictionCoef=frictionCoef,
@@ -82,7 +82,7 @@ def loadMapData(
                     #####END
                 ))
             elif int(column) == STARTKEY:
-                startPos = (
+                startPos = pygame.Vector2(
                     -initialOffset[1] + (currentNodePosition[0] * tileSize),
                     initialOffset[0] + (currentNodePosition[1] * tileSize)
                 )

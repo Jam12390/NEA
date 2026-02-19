@@ -1,11 +1,13 @@
 import pygame
 import sys
 from EntitySubclasses import Player
+import Entity
 from OtherClasses import WallObj, Item, ItemUIWindow
 from button import Button
 from dictionaries import *
 
 import mapLoading
+from transfer import precompile, pathing
 
 screenWidth = 1600
 screenHeight = screenWidth*0.8 #keep the ratio for w-h at 1:0.8 - could change later
@@ -20,6 +22,37 @@ paused = False
 FPS = 60
 
 #player = pygame.sprite.GroupSingle()
+
+mapName = "testMapMove"
+mapPath = "Prototype1/transfer/Maps/testMapMove.csv"
+
+mapResponse = mapLoading.loadMapData(
+    mapName=mapName,
+    STARTKEY=5,
+    ITEMKEY=6,
+    tileSize=75,
+    baseScreenDimensions=(screenWidth, screenHeight),
+    playerHeight=25
+)
+pathingOffset = pygame.Vector2(screenWidth/2, screenHeight/2)
+
+enemyData = {
+    "jumpForce": 100,
+    "maxSpeed": (0, 35)
+}
+
+loadedMap = precompile.loadMap(fileName=mapPath)
+
+precompiledGraph = precompile.precompileGraph(  
+    nodeMap=loadedMap,
+    nodeSep=10,
+    gravity=9.81 * 15,
+    enemyData=enemyData,
+    origin=(15, 0)
+)
+
+walls = mapResponse[0]
+
 player = Player(
     FPS=FPS,
     jumpForce=150, #pixels/second
@@ -31,24 +64,11 @@ player = Player(
     spritePath="Sprites/DefaultSprite.png", #path to the player's sprite goes here
     pTag="player",
     pMass=5,
-    startingPosition=pygame.math.Vector2(screenWidth/2, screenHeight/2),
+    startingPosition=mapResponse[1],#pygame.math.Vector2(screenWidth/2, screenHeight/2),
     startingVelocity=pygame.math.Vector2(0, 0),
-    pVelocityCap=pygame.math.Vector2(100, 100),
+    pVelocityCap=pygame.math.Vector2(100, 75),
     startingWeaponID=0
 )
-
-mapName = "testMapMove"
-
-mapResponse = mapLoading.loadMapData(
-    mapName="testMapMove",
-    STARTKEY=5,
-    ITEMKEY=6,
-    tileSize=75,
-    baseScreenDimensions=(screenWidth, screenHeight),
-    playerHeight=25
-)
-
-walls = mapResponse[0]
 
 #walls = pygame.sprite.Group()
 #walls.add(
@@ -60,6 +80,23 @@ walls = mapResponse[0]
 #        frictionCoef=1
 #    )
 #)
+
+debug = pygame.sprite.Group()
+debug.add(Entity.Entity(
+    FPS=FPS,
+    jumpForce=10,
+    maxHP=10,
+    defense=10,
+    speed=10,
+    pAttackCooldown=10,
+    spritePath="Sprites/DefaultSprite.png",
+    pTag="",
+    pMass=5,
+    startingPosition=pygame.Vector2(800, 400),
+    pVelocityCap=pygame.Vector2(100, 50),
+    startingVelocity=pygame.Vector2(50, 0),
+    pSize=pygame.Vector2(50, 25)
+))
 
 items = pygame.sprite.Group()
 #items.add(
@@ -122,6 +159,20 @@ def mainloop():
                     pauseMenu()
                 if event.key == pygame.K_SPACE and ("l" in player.blockedMotion or "r" in player.blockedMotion) and not player.isGrounded:
                     player.wallJump()
+                
+                if event.key == pygame.K_p:
+                    path = pathing.main(
+                        start=(16, 31),
+                        end=player.currentNode,
+                        precompiledData=precompiledGraph,
+                        nodeMap=loadedMap,
+                        nodeSep=10,
+                        jumpForce=enemyData["jumpForce"],
+                        maxXSpeed=enemyData["maxSpeed"][1],
+                        gravity=9.81 * 15
+                    )
+                    print(path)
+                    pass
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if not player.weapon.currentlyAttacking:
                     player.weapon.attack(parent=player)
@@ -135,6 +186,7 @@ def mainloop():
             #cycle through all potential movement inputs
             if (keys[pygame.K_w] or keys[pygame.K_SPACE]) and player.isGrounded and not "u" in player.blockedMotion:
                 player.jump()
+                player.previousGroundedYCoord = tuple([player.absoluteCoordinate.y])[0]
 
             if keys[pygame.K_a] and not player.containsForce(axis="x", ref="UserInputLeft") and not "l" in player.blockedMotion and not player.crouched:
                 player.addForce(axis="x", direction="l", ref="UserInputLeft", magnitude=2500)
@@ -156,15 +208,15 @@ def mainloop():
                         player.fastFalling = False #stop fast falling
                         player.modifySpeedCap(axis="y", magnitude=-15) #change speed cap back
                     player.removeForce(axis="y", ref="UserInputDown")
-                    if not player.crouched: #if we're not crouched
-                        player.crouch() #crouch
-                elif not player.isGrounded:
-                    if player.crouched: #if we're crouched
-                        player.uncrouch() #uncrouch
+                    #if not player.crouched: #if we're not crouched
+                    #    player.crouch() #crouch
+                #elif not player.isGrounded:
+                #    if player.crouched: #if we're crouched
+                #        player.uncrouch() #uncrouch
             else: #not holding S
                 player.removeForce(axis="y", ref="UserInputDown") #remove downwards force
-                if player.crouched:
-                    player.uncrouch()
+                #if player.crouched:
+                #    player.uncrouch()
                 if player.fastFalling:
                     player.modifySpeedCap(axis="y", magnitude=-15) #stop fast falling
                     player.fastFalling = False
@@ -177,23 +229,25 @@ def mainloop():
 
             #update all objects (this includes collision detection)
             playerMoved = player.update(collidableObjects=[walls, items])
-            if -0.25 < playerMoved.x and playerMoved.x < 0.25:
+            if -4.5 < playerMoved.x and playerMoved.x < 4.5:
                 playerMoved.x = 0
             if -0.25 < playerMoved.y and playerMoved.y < 0.25:
                 playerMoved.y = 0
+            player.absoluteCoordinate += playerMoved
             #playerMoved //= 1
-            #print(playerMoved)
-            #playerMoved = round(playerMoved)
+            #print(player.absoluteCoordinate)
+            #playerMoved = round(playerMoved)w
 
             #print(player._velocity)
             #print(player._xForces) 
             #print(player._yForces)
             #print(player.blockedMotion)
             #print(player.isGrounded)
-            #print(                                                                                                                                                                                                                                          player._velocity)
+            #print(                                                                                                                                                                                                                             player._velocity)
             #print(player.rect.center)
 
             walls.update()
+            debug.update(collidableObjects=[walls])
             #if "l" in player.blockedMotion and not "l" in previousBlockedMotion:
             #    playerMoved.x = -1
             #elif "r" in player.blockedMotion and not "r" in previousBlockedMotion:
@@ -224,6 +278,9 @@ def mainloop():
             for item in items:
                 item.rect.centerx -= playerMoved.x
                 item.rect.centery -= playerMoved.y
+            for x in debug:
+                x.rect.centerx -= playerMoved.x
+                x.rect.centery -= playerMoved.y
             items.update()
             redraw()
             pygame.display.flip()
@@ -236,6 +293,12 @@ def redraw(): #it's important to note that redraw() DOES NOT update() any of the
 
     #######REVERT TAG
     player.rect.center = (screenWidth/2, screenHeight/2)
+    player.currentNode = (
+        (player.absoluteCoordinate.y) // 75, #(y, x)
+        ((player.absoluteCoordinate.x) // 75) - 7
+    )
+    #print(player.currentNode)
+    #print(player.absoluteCoordinate)
     screen.blit(player.image, player.rect)
 
     #for sprite in walls:
@@ -277,9 +340,13 @@ def redraw(): #it's important to note that redraw() DOES NOT update() any of the
 
     for sprite in walls:
         screen.blit(sprite.image, sprite.rect)
+    for sprite in debug:
+        screen.blit(sprite.image, sprite.rect)
     walls.draw(screen)
     
     items.draw(screen)
+    debug.draw(screen)
+    #print(debug[0].rect.center)
 
 def inventory():
     global inventoryOpen

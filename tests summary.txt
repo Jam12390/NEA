@@ -181,7 +181,7 @@ Camera:
 	fuck knows why this happens
 
 Movement:
-	Walljumping sometimes doesn't work
+	Walljumping sometimes doesn't work -> from POINT 1 - removed walljumping as it didnt really fit within the game
 
 	+Player sticks to wall
 		- yFriction is maxed for some reason when running into the wall near the top
@@ -213,3 +213,57 @@ Movement:
 
 	+player is slightly offset each collision
 		- maybe add a 2 pixel tolerance to each direction for blockedMotion?
+
+REVERTED COMMIT "a"
+
+player.currentNode continues to move despite player being stationary
+	- cause: playerMoved clamp was too restricted (ie the player moved more in 1 frame than the clamp could catch)
+	- fix: increase clamp range
+	- suggestion: use a suvat equation to make sure the clamp is great enough
+
+player moves too far left/right in terms of currentNode if velocity is too high
+	maybe mapLoading is loading the x tiles half a tile too far right?
+	twas correct
+	fix: make 
+
+POINT 1
+same thing is happening on the y axis
+	absoluteCoordinate continues moving down even after the player becomes grounded
+	maybe since playerMoved returns a float?
+
+side note: trying to fix physicsobjects getting stuck on floor - its going great
+currently at: adding a check every frame to "unstick" the player if theyre in the ground
+been there, done that - sometimes the player bounces on hitting the floor which allows currentNode to keep changing (bad!)
+	=> totalDiff too large
+	=> in collision if both corners collide with the same tile/y-coord totalDiff is doubled (also bad!)
+	=> i implemented a variable beforehand to manage this but never finished it
+	=> no :(
+
+unstick using floats
+some collision checks not working
+consistent difference in inaccuracy (suvat?) (movement continuing for one too many frames?)
+
+issue with absoluteCoordinate during initial downwards collision
+
+lower fps has no issues
+physicsObject returns 3 on the second frame after grounding
+
+So.
+It turns out that the second frame after ground collision, physicsObject decides to add the difference // 1 to absoluteCoordinate
+which fucks things up
+since im basically out of time,
+ive gone with a jank solution which is to track if the last frame calculation was a ground collision
+if it was, then the program ignores the difference in y-calculation
+
+aaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAA
+I
+overthought
+it all
+i just set the y coord to the object its colliding with + 25 (tileSize)
+and it worked :D
+
+
+getting something to follow the player
+minor entity changes
+issue: entity will not travel off the screen
+clamp_ip() - that was it

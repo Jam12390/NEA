@@ -147,6 +147,16 @@ class Entity(PhysicsObject):
             self._resultantForce = self.recalculateResultantForce(forceMult=self._speed, includedForces=[])
             self._acceleration = self.getAcceleration()
             self.getVelocity()
-            self.displaceObject(collidableObjects=collidableObjects, playerMoved=playerMoved)
+            displacement = self.displaceObject(collidableObjects=collidableObjects)
 
-            self.rect.clamp_ip(pygame.display.get_surface().get_rect())
+            print(displacement)
+
+            if -1.5 < displacement.x and displacement.x < 1.5:
+                displacement.x = 0
+            if -0.25 < displacement.y and displacement.y < 0.25:
+                displacement.y = 0
+
+            self.rect.center += displacement
+            self.absoluteCoordinate += displacement
+
+            #self.rect.clamp_ip(pygame.display.get_surface().get_rect())

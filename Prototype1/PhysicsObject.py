@@ -32,6 +32,8 @@ class PhysicsObject(pygame.sprite.Sprite):
         self._acceleration = pygame.Vector2(0,0)
         self.blockedMotion = []
         self.isGrounded = False
+        self.previousGroundedYCoord = self.absoluteCoordinate.y
+        self.isPostGroundedFrame = 0
         self.shouldReturnDisplacement = False
     
     def recalculateResultantForce(self, forceMult: float = 1, includedForces: list = []):
@@ -92,7 +94,14 @@ class PhysicsObject(pygame.sprite.Sprite):
         xDisplacement = self._velocity.x*5*(1/self.FPS)
         yDisplacement = self._velocity.y*5*(1/self.FPS) #conversion of 1m -> 5pix - no
 
-        self.renderCollisions(collidableObjects=collidableObjects, displacement=pygame.Vector2(xDisplacement, yDisplacement)) #update position - playerMoved
+        #if self.isPostGroundedFrame > 0:
+        #    #self.isPostGroundedFrame = False
+        #    self.isPostGroundedFrame -= 1
+        #    ignoreDiff = 0 #multiplier
+        #else:
+        #    ignoreDiff = 1
+
+        diff = self.renderCollisions(collidableObjects=collidableObjects, displacement=pygame.Vector2(xDisplacement, yDisplacement), isPlayer=isPlayer) #update position - playerMoved
         #self.rect.center = (self.rect.centerx + xDisplacement, self.rect.centery + yDisplacement)
         #response = self.camRenderCollisions(
         #    collidableObjects=collidableObjects,
@@ -141,7 +150,7 @@ class PhysicsObject(pygame.sprite.Sprite):
         #if not isPlayer:
         #    self.rect.centerx += finalDisplacement.x
         #    self.rect.centery += finalDisplacement.y
-        return pygame.math.Vector2(xDisplacement, yDisplacement) #finalDisplacement
+        return pygame.math.Vector2(xDisplacement - diff[0], yDisplacement - diff[1]) #finalDisplacement
     
     def undercookedCollision(
             self,
@@ -199,8 +208,8 @@ class PhysicsObject(pygame.sprite.Sprite):
 
         frictionCoefs = {}
 
-        totalDiff = [displacement.x, displacement.y]
-        #totalDiff = [0, 0]
+        #totalDiff = [displacement.x, displacement.y]
+        totalDiff = [0, 0]
 
         collidingObjects = {
             "l": None,
@@ -209,17 +218,18 @@ class PhysicsObject(pygame.sprite.Sprite):
             "d": None
         }
 
-        if not isPlayer:
-            self.absoluteCoordinate = pygame.Vector2(self.absoluteCoordinate.x + displacement.x, self.absoluteCoordinate.y + displacement.y) #reverse this on the player object at the end..?
+        #if not isPlayer:
+            #print("Modified by render")
+            #self.absoluteCoordinate = pygame.Vector2(self.absoluteCoordinate.x + displacement.x, self.absoluteCoordinate.y + displacement.y) #reverse this on the player object at the end..?
             #self.rect.center = (self.rect.centerx + displacement.x, self.rect.centery + displacement.y) #reverse this on the player object at the end..?
-        originalDisplacement = tuple([displacement.x, displacement.y])
-        originalDisplacement = pygame.Vector2(x=originalDisplacement[0], y=originalDisplacement[1])
+        #originalDisplacement = tuple([displacement.x, displacement.y])
+        #originalDisplacement = pygame.Vector2(x=originalDisplacement[0], y=originalDisplacement[1])
 
 
 
         for group in collidableObjects:
             for collidable in group:
-                print(collidable.rect.center)
+                #print(collidable.rect.center)
                 if "item" in collidable.tags and self.tag == "player":
                     if pygame.Rect.colliderect(self.rect, collidable.rect): #collidable is an item in the scene
                         collidable.UIWindow.shown = True
@@ -321,7 +331,10 @@ class PhysicsObject(pygame.sprite.Sprite):
                     #if isPlayer and renderedDifference[0] > 1:
                     #    totalDiff[0] /= 2
                     #if isPlayer and renderedDifference[1] > 1:
-                    #    totalDiff[1] /= 2
+                    if renderedDifference[0] > 1 and isPlayer:
+                        totalDiff[0] /= 2
+                    if renderedDifference[1] > 1 and isPlayer:
+                        totalDiff[1] /= 2
                     #totalDiff[0] *= 2
                     #totalDiff[1] *= 2
                     
@@ -340,10 +353,18 @@ class PhysicsObject(pygame.sprite.Sprite):
                     #else:
                     #    self.isGrounded = False
         if "d" in collidingDirections:
+            #print(self.rect.centery)
+            #print(collidingObjects["d"].rect.centery)
+            #totalDiff[1] = 0
+            #totalDiff[1] = abs(self.rect.bottom - collidingObjects["d"].rect.top)
+            if not self.isGrounded and self.previousGroundedYCoord - 25 < self.absoluteCoordinate.y and self.absoluteCoordinate.y < self.previousGroundedYCoord + 25:
+                #self.isPostGroundedFrame += 2
+                totalDiff[1] = displacement.y
+                self.absoluteCoordinate.y = collidingObjects["d"].absoluteCoordinate.y - 25#tuple([self.previousGroundedYCoord])[0]
             self.isGrounded = True
             self.removeForce(axis="y", ref="UserInputDown")
-            if self.rect.bottom > collidingObjects["d"].rect.top:
-                totalDiff[0] -= 3
+            #if self.rect.bottom > collidingObjects["d"].rect.top:
+            #    totalDiff[0] -= 3
         else:
             self.isGrounded = False
         for direction in collidingDirections:
@@ -351,10 +372,10 @@ class PhysicsObject(pygame.sprite.Sprite):
                 self.blockedMotion.append(direction)
         self.__updateFriction(coef=frictionCoefs)
 
-        for x in collidingObjects.keys():
-            if collidingObjects[x] != None:
-                print(f"{x} - {collidingObjects[x].tags}")
-        print("-------------------")
+        #for x in collidingObjects.keys():
+        #    if collidingObjects[x] != None:
+        #        print(f"{x} - {collidingObjects[x].tags}")
+        #print("-------------------")
 
         if "u" in self.blockedMotion:
             if "roof" in collidingObjects["u"].tags:# or "wall" in collidingObjects["u"].tags:
@@ -369,6 +390,8 @@ class PhysicsObject(pygame.sprite.Sprite):
             #if len({"lCorner", "sandwich"} & set(collidingObjects["r"].tags)) == 0 and not "d" in self.blockedMotion:
             if not("lCorner" in collidingObjects["r"].tags or "sandwich" in collidingObjects["r"].tags):
                 self._velocity.x = min(0, self._velocity.x)
+            
+        return totalDiff
 
         #if isPlayer:
         #    self.rect.center = (self.rect.centerx - originalDisplacement.x, self.rect.centery - originalDisplacement.y)

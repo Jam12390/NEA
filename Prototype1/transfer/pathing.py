@@ -1,7 +1,13 @@
 import math
-from suvat import *
+try:
+    from transfer.suvat import *
+except:
+    from suvat import *
 import time
-import precompile
+try:
+    import transfer.precompile as precompile
+except:
+    import precompile
 from typing import Optional, Union
 
 class Stack():
@@ -527,7 +533,7 @@ def main(
     graph = precompiledData["nodes"]
 
     waypoints = precompiledData["waypointData"]["waypoints"]
-    awaypoints = precompiledData["waypointData"]["debug"]
+    #awaypoints = precompiledData["waypointData"]["debug"]
     disconnectedWaypoints = precompiledData["waypointData"]["disconnectedWaypoints"]
 
     path = pathfind(
@@ -535,7 +541,7 @@ def main(
         nodeMap=nodeMap,
         nodeSep=nodeSep,
         start=start,
-        end=end, #check for if path wraps around vertically using obj.previousNode and compare if the current previous node is on the same or lower y axis and that "d" is preferred as a direction
+        end=(int(end[0]), int(end[1])), #check for if path wraps around vertically using obj.previousNode and compare if the current previous node is on the same or lower y axis and that "d" is preferred as a direction
         tolerance=0,
         waypoints=waypoints,
         disconnectedWaypoints=list(disconnectedWaypoints),
@@ -543,6 +549,8 @@ def main(
         maxXSpeed=maxXSpeed,
         gravity=gravity
     )
+
+    return path
 
     for x in path:
         testGraph[x[0]][x[1]] = "x"
@@ -565,7 +573,7 @@ endTestSet = [
     (20, 5)
 ]
 
-testGraph = precompile.loadMap(fileName="Prototype2/Pathing/Maps/testMapMove.csv")
+testGraph = precompile.loadMap(fileName="Prototype1/transfer/Maps/testMapMove.csv")
 
 gravityAccel = 9.81 * 15
 nodeSep = 10
@@ -580,15 +588,15 @@ response = precompile.precompileGraph(
     nodeSep=nodeSep,
     gravity=gravityAccel,
     enemyData=enemyData,
-    origin=(18, 6)
+    origin=(15, 0)
 )
 
 debug = True
 t = time.time()
 if debug:
     main(
-        start=(18, 6),
-        end=(3, 31),
+        start=(16, 31),
+        end=(16, 0),
         precompiledData=response,
         nodeMap=testGraph,
         nodeSep=nodeSep,
@@ -596,12 +604,12 @@ if debug:
         maxXSpeed=enemyData["maxSpeed"][1],
         gravity=gravityAccel
     )
-else:
-    for index in range(0, len(startTestSet)):
-        main(
-            start=startTestSet[index],
-            end=endTestSet[index]
-        )
-        pass
-e = time.time()
-print(e - t)
+#else:
+#    for index in range(0, len(startTestSet)):
+#        main(
+#            start=startTestSet[index],
+#            end=endTestSet[index]
+#        )
+#        pass
+#e = time.time()
+#print(e - t)

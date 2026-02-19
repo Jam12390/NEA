@@ -1,4 +1,7 @@
-import suvat
+try:
+    import transfer.suvat as suvat
+except:
+    import suvat
 import csv
 import time
 
@@ -950,7 +953,7 @@ def loadMap(fileName: str) -> list[list[str]]:
         segmentedData.pop(0)
         testGraph = []
         for row in segmentedData:
-            testGraph.append([" " if x == "-1" else "#" for x in row])
+            testGraph.append([" " if x == "-1" or x == "5" else "#" for x in row])
         return testGraph
 
 def main(map: str, origin: tuple[int, int]):
@@ -995,7 +998,7 @@ def outputTestGraph(fileName: str) -> None:
     pass
 
 t = time.time()
-mapName = "Prototype2/Pathing/Maps/testMapMove.csv"
+mapName = "Prototype1/transfer/Maps/testMapMove.csv"
 origin = (0, 0)
 
 #main(map=mapName, origin=origin)

@@ -24,12 +24,13 @@ FPS = 60
 #player = pygame.sprite.GroupSingle()
 
 mapName = "testMapMove"
-mapPath = "Prototype1/transfer/Maps/testMapMove.csv"
+mapPath = f"Prototype1/transfer/Maps/{mapName}.csv"
 
 mapResponse = mapLoading.loadMapData(
     mapName=mapName,
     STARTKEY=5,
     ITEMKEY=6,
+    ENEMYKEY=6,
     tileSize=75,
     baseScreenDimensions=(screenWidth, screenHeight),
     playerHeight=25
@@ -38,7 +39,7 @@ pathingOffset = pygame.Vector2(screenWidth/2, screenHeight/2)
 
 enemyData = {
     "jumpForce": 100,
-    "maxSpeed": (0, 35)
+    "maxSpeed": (100, 50)
 }
 
 loadedMap = precompile.loadMap(fileName=mapPath)
@@ -48,8 +49,13 @@ precompiledGraph = precompile.precompileGraph(
     nodeSep=10,
     gravity=9.81 * 15,
     enemyData=enemyData,
-    origin=(15, 0)
+    origin=(16, 0)
 )
+
+#for x in precompiledGraph["nodes"]:
+#    loadedMap[x[0]][x[1]] = "x"
+#for row in loadedMap:
+#    print(row)
 
 walls = mapResponse[0]
 
@@ -81,10 +87,10 @@ player = Player(
 #    )
 #)
 
-debug = pygame.sprite.Group()
-debug.add(Entity.Entity(
+#debug = pygame.sprite.Group()
+debug = Entity.Entity(
     FPS=FPS,
-    jumpForce=10,
+    jumpForce=enemyData["jumpForce"],
     maxHP=10,
     defense=10,
     speed=10,
@@ -92,11 +98,11 @@ debug.add(Entity.Entity(
     spritePath="Sprites/DefaultSprite.png",
     pTag="",
     pMass=5,
-    startingPosition=pygame.Vector2(800, 400),
-    pVelocityCap=pygame.Vector2(100, 50),
+    startingPosition=pygame.Vector2(mapResponse[2][0]),#(800, 400),
+    pVelocityCap=pygame.Vector2(enemyData["maxSpeed"]),
     startingVelocity=pygame.Vector2(50, 0),
     pSize=pygame.Vector2(50, 25)
-))
+)
 
 items = pygame.sprite.Group()
 #items.add(
@@ -236,7 +242,7 @@ def mainloop():
             player.absoluteCoordinate += playerMoved
             #playerMoved //= 1
             #print(player.absoluteCoordinate)
-            #playerMoved = round(playerMoved)w
+            #playerMoved = round(playerMoved)
 
             #print(player._velocity)
             #print(player._xForces) 
@@ -247,7 +253,13 @@ def mainloop():
             #print(player.rect.center)
 
             walls.update()
-            debug.update(collidableObjects=[walls])
+            debug.update(
+                collidableObjects=[walls],
+                precompiledData=precompiledGraph,
+                nodeMap=loadedMap,
+                nodeSep=10,
+                pathingTo=player.currentNode
+            )
             #if "l" in player.blockedMotion and not "l" in previousBlockedMotion:
             #    playerMoved.x = -1
             #elif "r" in player.blockedMotion and not "r" in previousBlockedMotion:
@@ -278,9 +290,19 @@ def mainloop():
             for item in items:
                 item.rect.centerx -= playerMoved.x
                 item.rect.centery -= playerMoved.y
-            for x in debug:
-                x.rect.centerx -= playerMoved.x
-                x.rect.centery -= playerMoved.y
+            
+            debug.rect.centerx -= playerMoved.x
+            debug.rect.centery -= playerMoved.y
+                #path = pathing.main(
+                #        start=(16, 31),
+                #        end=player.currentNode,
+                #        precompiledData=precompiledGraph,
+                #        nodeMap=loadedMap,
+                #        nodeSep=10,
+                #        jumpForce=enemyData["jumpForce"],
+                #        maxXSpeed=enemyData["maxSpeed"][1],
+                #        gravity=9.81 * 15
+                #    )
             items.update()
             redraw()
             pygame.display.flip()
@@ -340,12 +362,17 @@ def redraw(): #it's important to note that redraw() DOES NOT update() any of the
 
     for sprite in walls:
         screen.blit(sprite.image, sprite.rect)
-    for sprite in debug:
-        screen.blit(sprite.image, sprite.rect)
+    
+    screen.blit(debug.image, debug.rect)
+    debug.currentNode = (
+        int((debug.absoluteCoordinate.y) // 75 + 8), #(y, x)
+        int(((debug.absoluteCoordinate.x) // 75) - 9)
+    )
+        #print(sprite.currentNode)
     walls.draw(screen)
     
     items.draw(screen)
-    debug.draw(screen)
+    screen.blit(debug.image, debug.rect)
     #print(debug[0].rect.center)
 
 def inventory():

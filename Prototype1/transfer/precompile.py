@@ -16,7 +16,7 @@ class Point():
         self.__y = y
         self.__nodeMap = nodeMap
         if x in range(0, len(nodeMap[0])) and y in range(0, len(nodeMap)):
-            self.data = nodeMap[y][x]
+            self.data = nodeMap[int(y)][int(x)]
         else:
             self.data = "#"
         
@@ -32,7 +32,7 @@ class Point():
 
     def __updateData(self) -> None:
         if self.isValid():
-            self.data = self.__nodeMap[self.__y][self.__x]
+            self.data = self.__nodeMap[int(self.__y)][int(self.__x)]
 
     def x(self) -> int:
         return self.__x
@@ -953,7 +953,7 @@ def loadMap(fileName: str) -> list[list[str]]:
         segmentedData.pop(0)
         testGraph = []
         for row in segmentedData:
-            testGraph.append([" " if x == "-1" or x == "5" else "#" for x in row])
+            testGraph.append([" " if x == "-1" or x == "5" or x == "6" else "#" for x in row])
         return testGraph
 
 def main(map: str, origin: tuple[int, int]):
@@ -997,11 +997,11 @@ def outputTestGraph(fileName: str) -> None:
         print(row)
     pass
 
-t = time.time()
+#t = time.time()
 mapName = "Prototype1/transfer/Maps/testMapMove.csv"
-origin = (0, 0)
-
-#main(map=mapName, origin=origin)
-outputTestGraph(fileName=mapName)
-e = time.time()
-print(e - t)
+#origin = (0, 6)
+#
+##main(map=mapName, origin=origin)
+#outputTestGraph(fileName=mapName)
+#e = time.time()
+#print(e - t)

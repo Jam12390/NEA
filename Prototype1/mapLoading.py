@@ -9,12 +9,14 @@ def loadMapData(
         mapName: str,
         STARTKEY: int,
         ITEMKEY: int,
+        ENEMYKEY: int,
         tileSize: int,
         baseScreenDimensions: tuple[int, int],
         playerHeight: int,
-        tileData: dict[int, tuple[str, float]] = {0: ("Sprites/DefaultSprite.png", (1.5, 0.5))}, # ID: (spritePath, frictionCoef => (x, y))
+        tileData: dict[int, tuple[str, float]] = {0: ("Sprites/DefaultSprite.png", (0.5, 0.5))}, # ID: (spritePath, frictionCoef => (x, y))
 ) -> tuple[pygame.sprite.Group, tuple[int, int]]:
     mapData = pygame.sprite.Group()
+    enemyStartPositions = []
     with open(f"Prototype1/transfer/Maps/{mapName}.csv", "r") as map:
         data = csv.reader(map, delimiter=" ", quotechar="|")
         segmentedData = []
@@ -31,7 +33,7 @@ def loadMapData(
     for row in segmentedData:
         currentNodePosition[1] = 0
         for column in row:
-            if not int(column) == -1 and not int(column) == STARTKEY and not int(column) == ITEMKEY: #if tile not empty
+            if not int(column) == -1 and not int(column) == STARTKEY and not int(column) == ITEMKEY and not int(column) == ENEMYKEY: #if tile not empty
                 try:
                     sprite = tileData[column][0]
                     frictionCoef = tileData[column][1]
@@ -40,7 +42,7 @@ def loadMapData(
                     frictionCoef = tileData[0][1]
 
                 ########REVERT A
-                INVALIDKEYS = [STARTKEY, ITEMKEY, -1]
+                INVALIDKEYS = [STARTKEY, ITEMKEY, ENEMYKEY, -1]
 
                 lWall = row[max(0, currentNodePosition[1] - 1)]
                 rWall = row[min(len(row) - 1, currentNodePosition[1] + 1)]
@@ -86,6 +88,12 @@ def loadMapData(
                     -initialOffset[1] + (currentNodePosition[0] * tileSize),
                     initialOffset[0] + (currentNodePosition[1] * tileSize)
                 )
+            elif int(column) == ENEMYKEY:
+                print("reg")
+                enemyStartPositions.append(pygame.Vector2(
+                    x=(currentNodePosition[1] * tileSize)  - tileSize//2,
+                    y=(currentNodePosition[0] * tileSize)
+                ))
             currentNodePosition[1] += 1
         currentNodePosition[0] += 1
 
@@ -96,18 +104,21 @@ def loadMapData(
     for node in mapData:
         node.rect.centerx += originOffset.x
         node.rect.centery += originOffset.y
+    for x in enemyStartPositions:
+        x += originOffset
 
-    return (mapData, startPos)
+    return (mapData, startPos, enemyStartPositions)
 
-response = loadMapData(
-    mapName="testMapMove",
-    baseScreenDimensions=(1600, 1280),
-    STARTKEY=5,
-    ITEMKEY=6,
-    tileSize=10,
-    playerHeight=25
-)
-responseLs = [x for x in response[0]]
-responseLs.sort(key=lambda tile: tile.rect.centery)
-for tile in responseLs:
-    print(tile.tags)
+#response = loadMapData(
+#    mapName="testMapMove",
+#    baseScreenDimensions=(1600, 1280),
+#    STARTKEY=5,
+#    ITEMKEY=6,
+#    ENEMYKEY=6,
+#    tileSize=10,
+#    playerHeight=25
+#)
+#responseLs = [x for x in response[0]]
+#responseLs.sort(key=lambda tile: tile.rect.centery)
+#for tile in responseLs:
+#    print(tile.tags)

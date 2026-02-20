@@ -45,10 +45,10 @@ class Player(Entity):
         self.facing = "r"
         self.ignoreAccelFrames = 0
 
-        self.currentNode = (0, 0)#(
-            #((self.absoluteCoordinate.x) // 75) - 7,
-            #(self.absoluteCoordinate.y) // 75,
-        #)
+        self.currentNode = (
+            ((self.absoluteCoordinate.x) // 75),
+            (self.absoluteCoordinate.y) // 75 + 6,
+        )
     
     def pickupItem(self, ID: int, replaces: str):
         newData = None

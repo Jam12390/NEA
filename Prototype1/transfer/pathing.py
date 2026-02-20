@@ -35,7 +35,10 @@ class TopDownNode():
 
 def getHeuristic(start, end, axis: Optional[str] = None) -> float:
     if axis == None or not (axis == "x" or axis=="y"):
-        return math.sqrt( (start[0]-end[0])**2 + (start[1]-end[1])**2)
+        try:
+            return math.sqrt( (start[0]-end[0])**2 + (start[1]-end[1])**2)
+        except:
+            return 0
     else:
         match axis:
             case "x":
@@ -195,7 +198,7 @@ def flattenPath(nodeMap, path):
     flattenedPath = []
     for node in path:
         currentCo = list(node)
-        while nodeMap[currentCo[0] + 1][currentCo[1]] == " ":
+        while nodeMap[int(currentCo[0] + 1)][int(currentCo[1])] == " ":
             currentCo[0] += 1
         flattenedPath.append(tuple(currentCo))
     return flattenedPath
@@ -536,11 +539,12 @@ def main(
     #awaypoints = precompiledData["waypointData"]["debug"]
     disconnectedWaypoints = precompiledData["waypointData"]["disconnectedWaypoints"]
 
+    print(f"{start} -> {end}")
     path = pathfind(
         graph=graph,
         nodeMap=nodeMap,
         nodeSep=nodeSep,
-        start=start,
+        start=(int(start[0]), int(start[1])),
         end=(int(end[0]), int(end[1])), #check for if path wraps around vertically using obj.previousNode and compare if the current previous node is on the same or lower y axis and that "d" is preferred as a direction
         tolerance=0,
         waypoints=waypoints,
@@ -560,50 +564,50 @@ def main(
         print("Invalid Path")
     print("\n")
 
-startTestSet = [
-    (29, 80),
-    (14, 0),
-    (18, 38),
-    (18, 38)
-]
-endTestSet = [
-    (18, 38),
-    (29, 0),
-    (18, 41),
-    (20, 5)
-]
+#startTestSet = [
+#    (29, 80),
+#    (14, 0),
+#    (18, 38),
+#    (18, 38)
+#]
+#endTestSet = [
+#    (18, 38),
+#    (29, 0),
+#    (18, 41),
+#    (20, 5)
+#]
+#
+#testGraph = precompile.loadMap(fileName="Prototype1/transfer/Maps/testMapMove.csv")
+#
+#gravityAccel = 9.81 * 15
+#nodeSep = 10
+#
+#enemyData = {
+#    "jumpForce": 100,
+#    "maxSpeed": (100, 50)
+#}
 
-testGraph = precompile.loadMap(fileName="Prototype1/transfer/Maps/testMapMove.csv")
+#response = precompile.precompileGraph(
+#    nodeMap=testGraph,
+#    nodeSep=nodeSep,
+#    gravity=gravityAccel,
+#    enemyData=enemyData,
+#    origin=(16, 0)
+#)
 
-gravityAccel = 9.81 * 15
-nodeSep = 10
-
-enemyData = {
-    "jumpForce": 100,
-    "maxSpeed": (0, 35)
-}
-
-response = precompile.precompileGraph(
-    nodeMap=testGraph,
-    nodeSep=nodeSep,
-    gravity=gravityAccel,
-    enemyData=enemyData,
-    origin=(15, 0)
-)
-
-debug = True
-t = time.time()
-if debug:
-    main(
-        start=(16, 31),
-        end=(16, 0),
-        precompiledData=response,
-        nodeMap=testGraph,
-        nodeSep=nodeSep,
-        jumpForce=enemyData["jumpForce"],
-        maxXSpeed=enemyData["maxSpeed"][1],
-        gravity=gravityAccel
-    )
+#debug = True
+#t = time.time()
+#if debug:
+#    main(
+#        start=(7, 11),
+#        end=(16, 0),
+#        precompiledData=response,
+#        nodeMap=testGraph,
+#        nodeSep=nodeSep,
+#        jumpForce=enemyData["jumpForce"],
+#        maxXSpeed=enemyData["maxSpeed"][1],
+#        gravity=gravityAccel
+#    )
 #else:
 #    for index in range(0, len(startTestSet)):
 #        main(

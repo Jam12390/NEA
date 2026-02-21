@@ -519,6 +519,23 @@ TODO:
 4. Remove the previous intermediate path and insert the fresh one
 '''
 
+def clamp(
+        inp: float,
+        mini: float,
+        maxi: float
+):
+    return max(mini, min(inp, maxi))
+
+def findFreeNode(
+        nodeMap,
+        start: tuple[int, int] #(y, x)
+):
+    start = [start[0], start[1]]
+    while start[0] > 0 and nodeMap[clamp(start[0], 0, len(nodeMap)-1)][clamp(start[1], 0, len(nodeMap[0])-1)] == "#":
+        start[0] -= 1
+    return tuple(start)
+
+
 def main(
         start: tuple[int, int],
         end: tuple[int, int],
@@ -539,7 +556,27 @@ def main(
     #awaypoints = precompiledData["waypointData"]["debug"]
     disconnectedWaypoints = precompiledData["waypointData"]["disconnectedWaypoints"]
 
-    print(f"{start} -> {end}")
+    start = findFreeNode(
+        nodeMap=nodeMap,
+        start=start
+    )
+
+    end = findFreeNode(
+        nodeMap=nodeMap,
+        start=end
+    )
+    end = precompile.getLowerNodes(
+        topNodes=[
+            precompile.Point(
+                x=end[1],
+                y=end[0],
+                nodeMap=nodeMap
+            ),
+        ],
+        nodeMap=nodeMap
+    )["floorNodes"][0].getCoord()
+
+    #print(f"{start} -> {end}")
     path = pathfind(
         graph=graph,
         nodeMap=nodeMap,
@@ -577,43 +614,38 @@ def main(
 #    (20, 5)
 #]
 #
-#testGraph = precompile.loadMap(fileName="Prototype1/transfer/Maps/testMapMove.csv")
-#
-#gravityAccel = 9.81 * 15
-#nodeSep = 10
-#
-#enemyData = {
-#    "jumpForce": 100,
-#    "maxSpeed": (100, 50)
-#}
 
-#response = precompile.precompileGraph(
-#    nodeMap=testGraph,
-#    nodeSep=nodeSep,
-#    gravity=gravityAccel,
-#    enemyData=enemyData,
-#    origin=(16, 0)
-#)
+testGraph = precompile.loadMap(fileName="Prototype1/transfer/Maps/testMapMove.csv")
 
-#debug = True
-#t = time.time()
-#if debug:
-#    main(
-#        start=(7, 11),
-#        end=(16, 0),
-#        precompiledData=response,
-#        nodeMap=testGraph,
-#        nodeSep=nodeSep,
-#        jumpForce=enemyData["jumpForce"],
-#        maxXSpeed=enemyData["maxSpeed"][1],
-#        gravity=gravityAccel
-#    )
-#else:
-#    for index in range(0, len(startTestSet)):
-#        main(
-#            start=startTestSet[index],
-#            end=endTestSet[index]
-#        )
-#        pass
-#e = time.time()
-#print(e - t)
+gravityAccel = 9.81 * 15
+nodeSep = 10
+
+enemyData = {
+    "jumpForce": 100,
+    "maxSpeed": (100, 50)
+}
+
+response = precompile.precompileGraph(
+    nodeMap=testGraph,
+    nodeSep=nodeSep,
+    gravity=gravityAccel,
+    enemyData=enemyData,
+    origin=(16, 0)
+)
+
+debug = True
+t = time.time()
+
+if debug:
+    main(
+        start=(16, 6),
+        end=(16, 0),
+        precompiledData=response,
+        nodeMap=testGraph,
+        nodeSep=nodeSep,
+        jumpForce=enemyData["jumpForce"],
+        maxXSpeed=enemyData["maxSpeed"][1],
+        gravity=gravityAccel
+    )
+e = time.time()
+print(e - t)

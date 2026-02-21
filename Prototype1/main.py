@@ -46,7 +46,7 @@ loadedMap = precompile.loadMap(fileName=mapPath)
 
 precompiledGraph = precompile.precompileGraph(  
     nodeMap=loadedMap,
-    nodeSep=10,
+    nodeSep=15,
     gravity=9.81 * 15,
     enemyData=enemyData,
     origin=(16, 0)
@@ -69,10 +69,10 @@ player = Player(
     pSize=pygame.math.Vector2(50, 50),
     spritePath="Sprites/DefaultSprite.png", #path to the player's sprite goes here
     pTag="player",
-    pMass=5,
+    pMass=3,
     startingPosition=mapResponse[1],#pygame.math.Vector2(screenWidth/2, screenHeight/2),
     startingVelocity=pygame.math.Vector2(0, 0),
-    pVelocityCap=pygame.math.Vector2(100, 75),
+    pVelocityCap=pygame.math.Vector2(50, 37.5),
     startingWeaponID=0
 )
 
@@ -98,11 +98,13 @@ debug = Entity.Entity(
     spritePath="Sprites/DefaultSprite.png",
     pTag="",
     pMass=5,
-    startingPosition=pygame.Vector2(mapResponse[2][0]),#(800, 400),
+    startingPosition=pygame.Vector2(mapResponse[3][0]),#(800, 400),
     pVelocityCap=pygame.Vector2(enemyData["maxSpeed"]),
     startingVelocity=pygame.Vector2(50, 0),
     pSize=pygame.Vector2(50, 25)
 )
+
+debug.absoluteCoordinate.y -= mapResponse[2].y
 
 items = pygame.sprite.Group()
 #items.add(
@@ -167,18 +169,13 @@ def mainloop():
                     player.wallJump()
                 
                 if event.key == pygame.K_p:
-                    path = pathing.main(
-                        start=(16, 31),
-                        end=player.currentNode,
-                        precompiledData=precompiledGraph,
-                        nodeMap=loadedMap,
-                        nodeSep=10,
-                        jumpForce=enemyData["jumpForce"],
-                        maxXSpeed=enemyData["maxSpeed"][1],
-                        gravity=9.81 * 15
-                    )
-                    print(path)
+                    debug.shouldPath = True
                     pass
+                if event.key == pygame.K_e:
+                    print(debug.absoluteCoordinate)
+                    print(debug.currentNode)
+                if event.key == pygame.K_r:
+                    debug.paused = not debug.paused
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if not player.weapon.currentlyAttacking:
                     player.weapon.attack(parent=player)
@@ -228,14 +225,14 @@ def mainloop():
                     player.fastFalling = False
 
             if keys[pygame.K_q]: #debug code, resets the player position to center
-                player.rect.center = (round(screenWidth/2), round(screenHeight/2))
-                player._velocity = pygame.Vector2(0,0)
+                print(player.currentNode)
+                print(player.absoluteCoordinate)
 
             screen.fill((0, 0, 0)) #rgb value for black background
 
             #update all objects (this includes collision detection)
             playerMoved = player.update(collidableObjects=[walls, items])
-            if -4.5 < playerMoved.x and playerMoved.x < 4.5:
+            if -2.5 < playerMoved.x and playerMoved.x < 2.5:
                 playerMoved.x = 0
             if -0.25 < playerMoved.y and playerMoved.y < 0.25:
                 playerMoved.y = 0
@@ -257,7 +254,7 @@ def mainloop():
                 collidableObjects=[walls],
                 precompiledData=precompiledGraph,
                 nodeMap=loadedMap,
-                nodeSep=10,
+                nodeSep=15,
                 pathingTo=player.currentNode
             )
             #if "l" in player.blockedMotion and not "l" in previousBlockedMotion:
@@ -365,7 +362,7 @@ def redraw(): #it's important to note that redraw() DOES NOT update() any of the
     
     screen.blit(debug.image, debug.rect)
     debug.currentNode = (
-        int((debug.absoluteCoordinate.y) // 75 + 8), #(y, x)
+        int((debug.absoluteCoordinate.y) // 75), #(y, x)
         int(((debug.absoluteCoordinate.x) // 75) - 9)
     )
         #print(sprite.currentNode)

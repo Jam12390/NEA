@@ -960,11 +960,11 @@ def main(map: str, origin: tuple[int, int]):
     testGraph = loadMap(fileName=map) #(7, 6)
 
     gravityAccel = 9.81 * 15
-    nodeSep = 10
+    nodeSep = 15
 
     enemyData = {
         "jumpForce": 100,
-        "maxSpeed": (0, 35)
+        "maxSpeed": (100, 37.5)
     }
 
     response = precompileGraph(
@@ -999,9 +999,9 @@ def outputTestGraph(fileName: str) -> None:
 
 #t = time.time()
 mapName = "Prototype1/transfer/Maps/testMapMove.csv"
-#origin = (0, 6)
+origin = (16, 0)
 #
-##main(map=mapName, origin=origin)
+main(map=mapName, origin=origin)
 #outputTestGraph(fileName=mapName)
 #e = time.time()
 #print(e - t)

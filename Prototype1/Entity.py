@@ -2,6 +2,7 @@ import pygame
 import operator
 from PhysicsObject import PhysicsObject
 from dictionaries import allEffects
+from transfer import precompile
 
 import transfer.pathing as pathing
 
@@ -69,7 +70,8 @@ class Entity(PhysicsObject):
         self.currentPath = []
 
         self.previousPathCoord = (0, 0)
-        self.shouldPath = True
+        self.shouldPath = False
+        self.paused = False
     
     def addEffect(self, ID: int):
         freeInstance = False
@@ -148,7 +150,7 @@ class Entity(PhysicsObject):
     #####PROTOTYPE 2
     def path(
             self,
-            pathingTo,
+            pathingTo, #(y, x)
             precompiledData,
             nodeMap,
             nodeSep,
@@ -156,51 +158,98 @@ class Entity(PhysicsObject):
             rePathTolerance=2
         ):
         pathingTo = (int(pathingTo[0]), int(pathingTo[1]))
+        print(self.currentNode)
+        print(self.currentPath)
+        #print(precompile.getLowerNodes(
+        #        topNodes=[precompile.Point(
+        #            x=pathingTo[1],
+        #            y=pathingTo[0],
+        #            nodeMap=nodeMap
+        #        )],
+        #        nodeMap=nodeMap
+        #    )["floorNodes"][0].getCoord())
+        #print(self.isPathing)
         if (pathing.getHeuristic(start=self.currentPathEnd, end=pathingTo) > rePathTolerance or not self.isPathing) and self.shouldPath:
-            self.currentPathEnd = pathingTo
-            self.currentPath = pathing.main(
-                precompiledData=precompiledData,
-                nodeMap=nodeMap,
-                nodeSep=nodeSep,
-                start=self.currentNode,
-                end=pathingTo,
-                jumpForce=self._jumpForce,
-                maxXSpeed=self._velocityCap.x,
-                gravity=gravity
-            )
-            if len(self.currentPath) == 1:
-                if self.currentPath[0] == self.currentNode:
-                    self.isPathing == False
-                    self.currentPath = []
+            #if precompile.getLowerNodes(
+            #    topNodes=[precompile.Point(
+            #        x=pathingTo[1],
+            #        y=pathingTo[0],
+            #        nodeMap=nodeMap
+            #    )],
+            #    nodeMap=nodeMap
+            #)["floorNodes"][0].getCoord() != pathingTo or not self.isPathing: #this is nested to save what little performance i have left
+                self.currentPathEnd = pathingTo
+                self.currentPath = pathing.main(
+                    precompiledData=precompiledData,
+                    nodeMap=nodeMap,
+                    nodeSep=nodeSep,
+                    start=self.currentNode,
+                    end=pathingTo,
+                    jumpForce=self._jumpForce,
+                    maxXSpeed=self._velocityCap.x,
+                    gravity=gravity
+                )
+                print(f"Pathing to {pathingTo}")
+                cleanPath = []
+                for x in self.currentPath:
+                    if not x in cleanPath:
+                        cleanPath.append(x)
+                self.currentPath = cleanPath
+                if len(self.currentPath) == 1:
+                    if self.currentPath[0] == self.currentNode:
+                        self.isPathing == False
+                        self.currentPath = []
+                    else:
+                        self.isPathing = True
                 else:
-                    self.isPathing = True
-            else:
-                self.isPathing == True
-            pass
+
+                    self.isPathing == True
+                #self.shouldPath = False
+                self.isPathing = True
+                pass
         if len(self.currentPath) > 0:
-            print(self.currentNode, self.currentPath[0])
-            if self.currentNode == self.currentPath[0]: #(y, x)
-                self.currentPath.pop(0)
-            xNodeDiff = self.currentPath[0][1] - self.currentNode[1] # + => Move right. - => Move left.
-            #print(f"pathing to {self.currentPath[0]}")
-            #print(f"x => {xNodeDiff}")
-            xDir = "l" if xNodeDiff < 0 else "r"
-            yNodeDiff = self.currentNode[0] - self.currentPath[0][0] # + => Move up. - => Move down.
-            #print(f"y => {yNodeDiff}")
-            yDir = "u" if yNodeDiff > 0 else "d"
-            if (not self.containsForce(axis="x", ref="xPathing")) and xNodeDiff != 0:
-                print(f"added xPathing")
-                self.addForce(axis="x", direction=xDir, ref="xPathing", magnitude=1000)
-            elif xNodeDiff == 0:
-                self.removeForce(axis="x", ref="xPathing")
-            if self.isGrounded and yNodeDiff > 0:
-                print("jump")
-                self.jump()
-            #print(self._xForces)
-            self.previousPathCoord = self.currentNode
-        else:
+            #print(self.currentNode, self.currentPath[0])
+            #print(self.absoluteCoordinate)
+            #if self.currentNode == self.currentPath[0]: #(y, x)
+            #    print("removed")
+            #    self.currentPath.pop(0)
+
+            if self.currentNode in self.currentPath:
+                #print(self.currentNode == self.currentPath[0])
+                #print(self.currentPath)
+                #self._velocity.x = 0
+                index = self.currentPath.index(self.currentNode)
+                for x in range(0, index + 1):
+                    print("z")
+                    self.currentPath.pop(0)
+                #while self.currentNode != self.currentPath[0]:
+                #    self.currentPath.pop(0)
+                #self.currentPath.pop(0)
+
+            try:
+                xNodeDiff = self.currentPath[0][1] - self.currentNode[1] # + => Move right. - => Move left.
+                #print(f"pathing to {self.currentPath[0]}")
+                #print(f"x => {xNodeDiff}")
+                xDir = "l" if xNodeDiff < 0 else "r"
+                yNodeDiff = self.currentNode[0] - self.currentPath[0][0] # + => Move up. - => Move down.
+                #print(f"y => {yNodeDiff}")
+                yDir = "u" if yNodeDiff > 0 else "d"
+                if (not self.containsForce(axis="x", ref="xPathing")) and xNodeDiff != 0:
+                    #print(f"added xPathing")
+                    self.addForce(axis="x", direction=xDir, ref="xPathing", magnitude=1000)
+                elif xNodeDiff == 0:
+                    self.removeForce(axis="x", ref="xPathing")
+                if self.isGrounded and yNodeDiff > 0:
+                    print("jump")
+                    self.jump()
+                self.previousPathCoord = self.currentNode
+            except:
+                pass
+        if len(self.currentPath) == 0:
+            self.removeForce(axis="x", ref="xPathing")
             self.isPathing = False
             self.shouldPath = False
+            self._velocity.x /= 1
             self._velocity.x = 0
 
     '''
@@ -225,19 +274,26 @@ class Entity(PhysicsObject):
 
             self._recalculateAttributes()
 
+            self._resultantForce = self.recalculateResultantForce(forceMult=self._speed, includedForces=[])
+            if self.paused:
+                self.paused = False
+
+            #print(self._xForces)
+
+            self._acceleration = self.getAcceleration()
+            self.getVelocity()
+
             ####PROTOTYPE 2
-            if self.debug > 5:
+            if self.debug > 13 and self.shouldPath:
                 self.path(
                     pathingTo=pathingTo,
                     precompiledData=precompiledData,
                     nodeMap=nodeMap,
                     nodeSep=nodeSep
                 )
+                self.debug = 0
             self.debug += 1
 
-            self._resultantForce = self.recalculateResultantForce(forceMult=self._speed, includedForces=[])
-            self._acceleration = self.getAcceleration()
-            self.getVelocity()
             displacement = self.displaceObject(collidableObjects=collidableObjects)
 
             if -1.5 < displacement.x and displacement.x < 1.5:

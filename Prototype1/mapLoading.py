@@ -104,10 +104,11 @@ def loadMapData(
     for node in mapData:
         node.rect.centerx += originOffset.x
         node.rect.centery += originOffset.y
-    for x in enemyStartPositions:
-        x += originOffset
+    for x in enemyStartPositions: ##here
+        x.x += originOffset.x
+        x.y += originOffset.y
 
-    return (mapData, startPos, enemyStartPositions)
+    return (mapData, startPos, originOffset, enemyStartPositions)
 
 #response = loadMapData(
 #    mapName="testMapMove",

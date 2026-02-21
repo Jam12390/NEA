@@ -267,3 +267,9 @@ getting something to follow the player
 minor entity changes
 issue: entity will not travel off the screen
 clamp_ip() - that was it
+
+
+issue with going up and right
+
++issue with absoluteCoordinate and currentNode
+playing around with numbers fixed this issue

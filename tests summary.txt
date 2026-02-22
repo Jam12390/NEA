@@ -273,3 +273,12 @@ issue with going up and right
 
 +issue with absoluteCoordinate and currentNode
 playing around with numbers fixed this issue
+
+
+
+terminal tests:
+basic path left - passed
+path upwards - passed
+path over object - passed
+path across map - passed
+jumping path - fail => 

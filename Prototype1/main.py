@@ -23,15 +23,18 @@ FPS = 60
 
 #player = pygame.sprite.GroupSingle()
 
-mapName = "testMapMove"
+mapName = "testMapMove6"
 mapPath = f"Prototype1/transfer/Maps/{mapName}.csv"
+
+TILESIZE = 76
+PLAYERSIZE = pygame.Vector2(50, 50)
 
 mapResponse = mapLoading.loadMapData(
     mapName=mapName,
     STARTKEY=5,
     ITEMKEY=6,
     ENEMYKEY=6,
-    tileSize=76,
+    tileSize=TILESIZE,
     baseScreenDimensions=(screenWidth, screenHeight),
     playerHeight=25
 )
@@ -44,12 +47,12 @@ enemyData = {
 
 loadedMap = precompile.loadMap(fileName=mapPath)
 
-precompiledGraph = precompile.precompileGraph(  
+precompiledGraph = precompile.precompileGraph(
     nodeMap=loadedMap,
     nodeSep=15,
     gravity=9.81 * 15,
     enemyData=enemyData,
-    origin=(16, 0)
+    origin=(16, 1)
 )
 
 #for x in precompiledGraph["nodes"]:
@@ -66,13 +69,13 @@ player = Player(
     defense=5,
     speed=5,
     pAttackCooldown=0.75,
-    pSize=pygame.math.Vector2(50, 50),
+    pSize=PLAYERSIZE,
     spritePath="Sprites/DefaultSprite.png", #path to the player's sprite goes here
     pTag="player",
     pMass=3,
     startingPosition=mapResponse[1],#pygame.math.Vector2(screenWidth/2, screenHeight/2),
     startingVelocity=pygame.math.Vector2(0, 0),
-    pVelocityCap=pygame.math.Vector2(50, 37.5),
+    pVelocityCap=pygame.math.Vector2(100, 100),
     startingWeaponID=0
 )
 player.absoluteCoordinate.x -= screenWidth/3
@@ -136,7 +139,7 @@ items = pygame.sprite.Group()
 
 mainLoopRunning = True
 
-inventoryOpen = False
+inventoryOpen = False   
 
 previousBlockedMotion = ()
 
@@ -236,7 +239,7 @@ def mainloop():
 
             #update all objects (this includes collision detection)
             playerMoved = player.update(collidableObjects=[walls, items])
-            if -2.5 < playerMoved.x and playerMoved.x < 2.5:
+            if -(player._velocityCap.x / 25) < playerMoved.x and playerMoved.x < player._velocityCap.x / 25:
                 playerMoved.x = 0
             if -0.25 < playerMoved.y and playerMoved.y < 0.25:
                 playerMoved.y = 0

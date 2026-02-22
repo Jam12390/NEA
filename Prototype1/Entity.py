@@ -219,6 +219,7 @@ class Entity(PhysicsObject):
                 #print(self.currentPath)
                 #self._velocity.x = 0
                 index = self.currentPath.index(self.currentNode)
+                print(self.currentPath)
                 for x in range(0, index + 1):
                     print("z")
                     self.framesSinceLastNode = 0

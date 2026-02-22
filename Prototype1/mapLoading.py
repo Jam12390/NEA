@@ -68,12 +68,13 @@ def loadMapData(
                     tags = ["floor", "wall"]
                 else:
                     tags = ["wall"]
+                tags.append("floor")
                 #####END
 
                 mapData.add(OtherClasses.WallObj(
                     size= pygame.Vector2(tileSize, tileSize),
                     position= pygame.Vector2(
-                        x=(currentNodePosition[1] * tileSize) - tileSize//2,# + (1 if tileSize%2 > 0 else 0),
+                        x=(currentNodePosition[1] * tileSize) - 2 * tileSize,# - tileSize//2,# + (1 if tileSize%2 > 0 else 0),
                         y=(currentNodePosition[0] * tileSize)
                     ),
                     frictionCoef=frictionCoef,
@@ -91,7 +92,7 @@ def loadMapData(
             elif int(column) == ENEMYKEY:
                 print("reg")
                 enemyStartPositions.append(pygame.Vector2(
-                    x=(currentNodePosition[1] * tileSize)  - tileSize//2,
+                    x=(currentNodePosition[1] * tileSize)  - tileSize,
                     y=(currentNodePosition[0] * tileSize)
                 ))
             currentNodePosition[1] += 1
@@ -116,7 +117,7 @@ def loadMapData(
 #    STARTKEY=5,
 #    ITEMKEY=6,
 #    ENEMYKEY=6,
-#    tileSize=10,
+#    tileSize=76,
 #    playerHeight=25
 #)
 #responseLs = [x for x in response[0]]

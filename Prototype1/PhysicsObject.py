@@ -379,7 +379,7 @@ class PhysicsObject(pygame.sprite.Sprite):
         #print("-------------------")
 
         if "u" in self.blockedMotion:
-            if "roof" in collidingObjects["u"].tags:# or "wall" in collidingObjects["u"].tags:
+            if "roof" in collidingObjects["u"].tags or "wall" in collidingObjects["u"].tags:
                 self._velocity.y = max(0, self._velocity.y)
         elif "d" in self.blockedMotion:
             self._velocity.y = min(0, self._velocity.y)
@@ -387,8 +387,8 @@ class PhysicsObject(pygame.sprite.Sprite):
             #if len({"rCorner", "sandwich"} & set(collidingObjects["l"].tags)) == 0 and not "d" in self.blockedMotion:
             if not("rCorner" in collidingObjects["l"].tags or "sandwich" in collidingObjects["l"].tags):
                 self._velocity.x = max(0, self._velocity.x)
-            if collidingObjects["l"] != None:
-                self.absoluteCoordinate.x = collidingObjects["l"].absoluteCoordinate.x - self.size.x // 2 - collidingObjects["l"].rect.width // 2
+            #if collidingObjects["l"] != None:
+            #    self.absoluteCoordinate.x = collidingObjects["l"].absoluteCoordinate.x + self.size.x // 2 + collidingObjects["l"].rect.width // 2
         elif "r" in self.blockedMotion:
             #if len({"lCorner", "sandwich"} & set(collidingObjects["r"].tags)) == 0 and not "d" in self.blockedMotion:
             if not("lCorner" in collidingObjects["r"].tags or "sandwich" in collidingObjects["r"].tags):

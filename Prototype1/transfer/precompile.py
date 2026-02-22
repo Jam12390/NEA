@@ -998,7 +998,7 @@ def outputTestGraph(fileName: str) -> None:
     pass
 
 #t = time.time()
-mapName = "Prototype1/transfer/Maps/testMapMove.csv"
+mapName = "Prototype1/transfer/Maps/testMapMove6.csv"
 origin = (16, 0)
 #
 main(map=mapName, origin=origin)

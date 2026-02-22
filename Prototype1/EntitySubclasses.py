@@ -182,3 +182,31 @@ class Player(Entity):
             self.rect.clamp_ip(pygame.display.get_surface().get_rect())
 
             return displacement #playerMoved
+        
+
+class Enemy(Entity):
+    def __init__(self,
+            FPS,
+            jumpForce,
+            maxHP,
+            defense,
+            speed,
+            pAttackCooldown,
+            pSize,
+            spritePath,
+            pMass,
+            startingPosition,
+            pVelocityCap,
+            startingVelocity = ...,
+            pAggroRange = 5,
+            pFacing = "r",
+            weaponID = 0,
+            pTag = "Enemy"):
+        super().__init__(FPS, jumpForce, maxHP, defense, speed, pAttackCooldown, pSize, spritePath, pMass, startingPosition, pVelocityCap, startingVelocity, pTag)
+        self.aggroRange = pAggroRange
+        self.weapon = Weapon(FPS=FPS, pID=weaponID, startingPosition=pygame.Vector2(round(self.rect.centerx), round(self.rect.centery)))
+        
+        self.currentNode = (
+            ((self.absoluteCoordinate.x) // 75),
+            (self.absoluteCoordinate.y) // 75 + 6,
+        )

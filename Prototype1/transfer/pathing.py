@@ -357,7 +357,10 @@ def pathfind(
                 #else:
                 #    finalPath.extend(getTopDownPath(graph=graph, start=waypointPath[nodeIndex], end=waypointPath[nodeIndex + 1], tolerance=tolerance, directionalGraph=None))
             finalPath.extend(getTopDownPath(graph=graph, start=nearestEndWaypoint, end=end.getCoord(), tolerance=tolerance, directionalGraph=None))
-        
+        else:
+            reversed = list(tuple(flattenedPath))
+            reversed.reverse()
+            return reversed if start.getCoord()[1] > end.getCoord()[1] else flattenedPath
         return finalPath
     else:
         return []
@@ -531,10 +534,25 @@ def findFreeNode(
         start: tuple[int, int] #(y, x)
 ):
     start = [start[0], start[1]]
-    while start[0] > 0 and nodeMap[clamp(start[0], 0, len(nodeMap)-1)][clamp(start[1], 0, len(nodeMap[0])-1)] == "#":
-        start[0] -= 1
+    if nodeMap[clamp(start[0] - 1, 0, len(nodeMap)-1)][clamp(start[1], 0, len(nodeMap[0])-1)] != "#":
+        return (start[0] - 1, start[1])
+    if nodeMap[clamp(start[0], 0, len(nodeMap)-1)][clamp(start[1] - 1, 0, len(nodeMap[0])-1)]:
+        return (start[0], start[1] - 1)
+    if nodeMap[clamp(start[0], 0, len(nodeMap)-1)][clamp(start[1] - 1, 0, len(nodeMap[0])+1)]:
+        return (start[0], start[1] + 1)
+    #while start[0] > 0 and nodeMap[clamp(start[0], 0, len(nodeMap)-1)][clamp(start[1], 0, len(nodeMap[0])-1)] == "#":
+    #    start[0] -= 1
     return tuple(start)
 
+def shortenPath(path, nodeMap):
+    index = 0
+    while index + 2 < len(path):
+        xDiff = abs(path[index + 2][1] - path[index][1])
+        yDiff = abs(path[index + 2][0] - path[index][0])
+        if xDiff == 1 and yDiff == 1 and nodeMap[path[index][0] - 1][path[index][1]] != "#":
+            path.pop(index + 1)
+        index += 1
+    return path
 
 def main(
         start: tuple[int, int],
@@ -592,7 +610,12 @@ def main(
         gravity=gravity
     )
 
-    return path
+    path = shortenPath(
+        path=path,
+        nodeMap=testGraph
+    )
+
+    #return path
 
     for x in path:
         testGraph[x[0]][x[1]] = "x"
@@ -616,10 +639,10 @@ def main(
 #]
 #
 
-testGraph = precompile.loadMap(fileName="Prototype1/transfer/Maps/testMapMove.csv")
+testGraph = precompile.loadMap(fileName="Prototype1/transfer/Maps/testMapMove6.csv")
 
 gravityAccel = 9.81 * 15
-nodeSep = 10
+nodeSep = 15
 
 enemyData = {
     "jumpForce": 100,
@@ -639,8 +662,8 @@ t = time.time()
 
 if debug:
     main(
-        start=(16, 3),
-        end=(16, 0),
+        start=(14, 13),
+        end=(12, 18),
         precompiledData=response,
         nodeMap=testGraph,
         nodeSep=nodeSep,

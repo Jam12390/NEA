@@ -149,7 +149,7 @@ def getTopDownPath(graph, start, end, tolerance: int, directionalGraph: Optional
     ])
     currentNode = nodes[0]
     path = []
-    while not end in currentNode.nextNodes:
+    while end != currentNode.coord and not end in currentNode.nextNodes:
         if preferDirection == None:
             currentNodeIndex = getNextNodeToVisit(nodes=nodes)
         else:
@@ -276,7 +276,7 @@ def pathfind(
             
         waypointPath = getTopDownPath(graph=graph, start=nearestStartWaypoint, end=nearestEndWaypoint, tolerance=tolerance, directionalGraph=waypoints)#preferDirection="d")
         finalPath = []
-        if len(waypointPath) != 0:
+        if len(waypointPath) != 0 and not None in waypointPath:
             finalPath = getTopDownPath(graph=graph, start=start.getCoord(), end=nearestStartWaypoint, tolerance=tolerance, directionalGraph=None)
             jumpHeight = abs(s(
                     u=jumpForce,
@@ -565,6 +565,7 @@ def main(
         nodeMap=nodeMap,
         start=end
     )
+    print(f"end - {end}")
     end = precompile.getLowerNodes(
         topNodes=[
             precompile.Point(
@@ -638,7 +639,7 @@ t = time.time()
 
 if debug:
     main(
-        start=(16, 6),
+        start=(16, 3),
         end=(16, 0),
         precompiledData=response,
         nodeMap=testGraph,

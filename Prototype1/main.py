@@ -31,7 +31,7 @@ mapResponse = mapLoading.loadMapData(
     STARTKEY=5,
     ITEMKEY=6,
     ENEMYKEY=6,
-    tileSize=75,
+    tileSize=76,
     baseScreenDimensions=(screenWidth, screenHeight),
     playerHeight=25
 )
@@ -75,6 +75,7 @@ player = Player(
     pVelocityCap=pygame.math.Vector2(50, 37.5),
     startingWeaponID=0
 )
+player.absoluteCoordinate.x -= screenWidth/3
 
 #walls = pygame.sprite.Group()
 #walls.add(
@@ -105,6 +106,7 @@ debug = Entity.Entity(
 )
 
 debug.absoluteCoordinate.y -= mapResponse[2].y
+debug.absoluteCoordinate.x -= screenWidth/2
 
 items = pygame.sprite.Group()
 #items.add(
@@ -170,6 +172,8 @@ def mainloop():
                 
                 if event.key == pygame.K_p:
                     debug.shouldPath = True
+                    pass
+                if event.key == pygame.K_o:
                     pass
                 if event.key == pygame.K_e:
                     print(debug.absoluteCoordinate)
@@ -314,7 +318,7 @@ def redraw(): #it's important to note that redraw() DOES NOT update() any of the
     player.rect.center = (screenWidth/2, screenHeight/2)
     player.currentNode = (
         (player.absoluteCoordinate.y) // 75, #(y, x)
-        ((player.absoluteCoordinate.x) // 75) - 7
+        ((player.absoluteCoordinate.x) // 75)
     )
     #print(player.currentNode)
     #print(player.absoluteCoordinate)
@@ -363,7 +367,7 @@ def redraw(): #it's important to note that redraw() DOES NOT update() any of the
     screen.blit(debug.image, debug.rect)
     debug.currentNode = (
         int((debug.absoluteCoordinate.y) // 75), #(y, x)
-        int(((debug.absoluteCoordinate.x) // 75) - 9)
+        int(((debug.absoluteCoordinate.x) // 75))
     )
         #print(sprite.currentNode)
     walls.draw(screen)

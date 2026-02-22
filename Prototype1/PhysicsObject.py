@@ -202,7 +202,7 @@ class PhysicsObject(pygame.sprite.Sprite):
         return finalDisplacement
         
 
-    def renderCollisions(self, collidableObjects, displacement: pygame.math.Vector2, isPlayer: bool=False) -> typing.Optional[pygame.Vector2]:
+    def renderCollisions(self, collidableObjects, displacement: pygame.math.Vector2, isPlayer: bool=False, tileSize=76) -> typing.Optional[pygame.Vector2]:
         self.blockedMotion = []
         collidingDirections = []
 
@@ -357,14 +357,15 @@ class PhysicsObject(pygame.sprite.Sprite):
             #print(collidingObjects["d"].rect.centery)
             #totalDiff[1] = 0
             #totalDiff[1] = abs(self.rect.bottom - collidingObjects["d"].rect.top)
-            if not self.isGrounded and self.previousGroundedYCoord - 25 < self.absoluteCoordinate.y and self.absoluteCoordinate.y < self.previousGroundedYCoord + 25:
-                #self.isPostGroundedFrame += 2
-                totalDiff[1] = displacement.y
-                self.absoluteCoordinate.y = collidingObjects["d"].absoluteCoordinate.y - 25#tuple([self.previousGroundedYCoord])[0]
+            #if not self.isGrounded and self.previousGroundedYCoord - 25 < self.absoluteCoordinate.y and self.absoluteCoordinate.y < self.previousGroundedYCoord + 25:
+            #    #self.isPostGroundedFrame += 2
+            #    totalDiff[1] = displacement.y
+            #    self.absoluteCoordinate.y = collidingObjects["d"].absoluteCoordinate.y - self.size.y // 2 - collidingObjects["d"].rect.height // 2#tuple([self.previousGroundedYCoord])[0]
             self.isGrounded = True
             self.removeForce(axis="y", ref="UserInputDown")
             #if self.rect.bottom > collidingObjects["d"].rect.top:
             #    totalDiff[0] -= 3
+            self.absoluteCoordinate.y = collidingObjects["d"].absoluteCoordinate.y - self.size.y // 2 - collidingObjects["d"].rect.height // 2#tuple([self.previousGroundedYCoord])[0]
         else:
             self.isGrounded = False
         for direction in collidingDirections:
@@ -386,10 +387,14 @@ class PhysicsObject(pygame.sprite.Sprite):
             #if len({"rCorner", "sandwich"} & set(collidingObjects["l"].tags)) == 0 and not "d" in self.blockedMotion:
             if not("rCorner" in collidingObjects["l"].tags or "sandwich" in collidingObjects["l"].tags):
                 self._velocity.x = max(0, self._velocity.x)
+            if collidingObjects["l"] != None:
+                self.absoluteCoordinate.x = collidingObjects["l"].absoluteCoordinate.x - self.size.x // 2 - collidingObjects["l"].rect.width // 2
         elif "r" in self.blockedMotion:
             #if len({"lCorner", "sandwich"} & set(collidingObjects["r"].tags)) == 0 and not "d" in self.blockedMotion:
             if not("lCorner" in collidingObjects["r"].tags or "sandwich" in collidingObjects["r"].tags):
                 self._velocity.x = min(0, self._velocity.x)
+            if collidingObjects["r"] != None:
+                self.absoluteCoordinate.x = collidingObjects["r"].absoluteCoordinate.x + self.size.x // 2 + collidingObjects["r"].rect.width // 2
             
         return totalDiff
 
@@ -522,12 +527,12 @@ class PhysicsObject(pygame.sprite.Sprite):
         
         if axis == "x":
             if ref in self._xForces.values(): #presence check for force reference
-                self._xForces[ref] += dirEffect*magnitude #if the force exists, add magnitude to it
+                self._xForces[ref] = dirEffect*magnitude #if the force exists, add magnitude to it
             else:
                 self._xForces[ref] = dirEffect*magnitude #otherwise add it to the dictionary
         else:
             if ref in self._yForces.values():
-                self._yForces[ref] += dirEffect*magnitude
+                self._yForces[ref] = dirEffect*magnitude
             else:
                 self._yForces[ref] = dirEffect*magnitude
 

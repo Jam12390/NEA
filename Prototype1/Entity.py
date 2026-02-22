@@ -70,6 +70,7 @@ class Entity(PhysicsObject):
         self.currentPath = []
 
         self.previousPathCoord = (0, 0)
+        self.framesSinceLastNode = 0
         self.shouldPath = False
         self.paused = False
     
@@ -202,7 +203,6 @@ class Entity(PhysicsObject):
                     else:
                         self.isPathing = True
                 else:
-
                     self.isPathing == True
                 #self.shouldPath = False
                 self.isPathing = True
@@ -221,10 +221,21 @@ class Entity(PhysicsObject):
                 index = self.currentPath.index(self.currentNode)
                 for x in range(0, index + 1):
                     print("z")
+                    self.framesSinceLastNode = 0
+                    self.previousPathCoord = self.currentPath[0]
+                    self.removeForce(axis="x", ref="xPathing")
                     self.currentPath.pop(0)
                 #while self.currentNode != self.currentPath[0]:
                 #    self.currentPath.pop(0)
                 #self.currentPath.pop(0)
+            if self.framesSinceLastNode > self.FPS:
+                self.framesSinceLastNode = 0
+                self.currentPath.pop(0)
+                self.removeForce(axis="x", ref="xPathing")
+                try:
+                    self.previousPathCoord = self.currentPath[0]
+                except:
+                    pass
 
             try:
                 xNodeDiff = self.currentPath[0][1] - self.currentNode[1] # + => Move right. - => Move left.
@@ -234,17 +245,20 @@ class Entity(PhysicsObject):
                 yNodeDiff = self.currentNode[0] - self.currentPath[0][0] # + => Move up. - => Move down.
                 #print(f"y => {yNodeDiff}")
                 yDir = "u" if yNodeDiff > 0 else "d"
-                if (not self.containsForce(axis="x", ref="xPathing")) and xNodeDiff != 0:
+                #if (not self.containsForce(axis="x", ref="xPathing")) and xNodeDiff != 0:
                     #print(f"added xPathing")
-                    self.addForce(axis="x", direction=xDir, ref="xPathing", magnitude=1000)
-                elif xNodeDiff == 0:
+                self.addForce(axis="x", direction=xDir, ref="xPathing", magnitude=1000)
+                if xNodeDiff == 0:
                     self.removeForce(axis="x", ref="xPathing")
+                elif self.framesSinceLastNode > 10:
+                    self.addForce(axis="x", direction=xDir, ref="xPathing", magnitude=1000)
                 if self.isGrounded and yNodeDiff > 0:
                     print("jump")
                     self.jump()
                 self.previousPathCoord = self.currentNode
             except:
                 pass
+
         if len(self.currentPath) == 0:
             self.removeForce(axis="x", ref="xPathing")
             self.isPathing = False
@@ -284,7 +298,7 @@ class Entity(PhysicsObject):
             self.getVelocity()
 
             ####PROTOTYPE 2
-            if self.debug > 13 and self.shouldPath:
+            if self.debug > 7 and self.shouldPath:
                 self.path(
                     pathingTo=pathingTo,
                     precompiledData=precompiledData,
@@ -296,10 +310,13 @@ class Entity(PhysicsObject):
 
             displacement = self.displaceObject(collidableObjects=collidableObjects)
 
-            if -1.5 < displacement.x and displacement.x < 1.5:
+            if -2.5 < displacement.x and displacement.x < 2.5:
                 displacement.x = 0
             if -0.25 < displacement.y and displacement.y < 0.25:
                 displacement.y = 0
+
+            if self.currentNode == self.previousPathCoord:
+                self.framesSinceLastNode += 1
 
             self.rect.center += displacement
             self.absoluteCoordinate += displacement
